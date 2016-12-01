@@ -1,0 +1,45 @@
+# BUFR Table A - Data category
+0|Surface data - land
+1|Surface data - sea
+2|Vertical soundings (other than satellite)
+3|Vertical soundings (satellite)
+4|Single level upper-air data (other than satellite)
+5|Single level upper-air data (satellite)
+6|Radar data
+7|Synoptic features
+8|Physical/chemical constituents
+9|Dispersal and transport
+10|Radiological data
+11|BUFR tables, complete replacement or update
+12|Surface data (satellite)
+13|Forecasts
+14|Warnings
+20|Status information
+21|Radiances (satellite measured)
+22|Radar (satellite) but not altimeter and scatterometer
+23|Lidar (satellite)
+24|Scatterometry (satellite)
+25|Altimetry (satellite)
+26|Spectrometry (satellite)
+27|Gravity measurement (satellite)
+28|Precision orbit (satellite)
+29|Space environment (satellite)
+30|Calibration datasets (satellite)
+31|Oceanographic data
+101|Image data
+240|For experimental use
+241|For experimental use
+242|For experimental use
+243|For experimental use
+244|For experimental use
+245|For experimental use
+246|For experimental use
+247|For experimental use
+248|For experimental use
+249|For experimental use
+250|For experimental use
+251|For experimental use
+252|For experimental use
+253|For experimental use
+254|For experimental use
+255|Other category, or local use
