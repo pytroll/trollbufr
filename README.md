@@ -10,7 +10,8 @@ Download TDCF table archive:
 * eg. from [ECMWF eccodes](https://software.ecmwf.int/wiki/display/ECC/ecCodes+Home).
 * DWD's public [FTP server for GDS](http://www.dwd.de/EN/ourservices/gds/gds.html).
 * Or other sources.
-If files operator.table and/or datacat.table are not present in the table directory, 
+
+If files `operator.table` and/or `datacat.table` are not present in the table directory, 
 there are standard ones in this project's root. These files are not required for 
 decoding, but optional for readable output.
 
