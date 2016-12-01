@@ -116,14 +116,14 @@ def cset2octets(data, loc_width, subs_num, btyp):
         # All equal
         v = min_val
     else:
-        i = 0
-        while i < subs_num[1]:
-            n = data.get_bits(cwidth)
-            if i == subs_num[0]:
-                if n == (1 << cwidth) - 1:
-                    n = (1 << loc_width) - 1
-                v = min_val + n
-            i += 1
+        if subs_num[0]:
+            data.get_bits(cwidth * subs_num[0])
+        n = data.get_bits(cwidth)
+        if n == (1 << cwidth) - 1:
+            n = (1 << loc_width) - 1
+        v = min_val + n
+        if subs_num[1] - subs_num[0] - 1:
+            data.get_bits(cwidth * (subs_num[1] - subs_num[0] - 1))
     return v
 
 def rval2str(rval):
