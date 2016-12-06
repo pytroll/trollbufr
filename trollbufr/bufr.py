@@ -77,7 +77,7 @@ class Bufr(object):
         return self._meta
 
     def get_meta_str(self):
-        """All meta-information from section 1 as multi-line string"""
+        """All meta-information from section 1+3 as multi-line string"""
         s = []
         t = "%-32s: %s"
         s.append(t % ("Edition", self._meta.get("edition", "---")))
@@ -102,6 +102,7 @@ class Bufr(object):
         s.append(t % ("Most typical time", self._meta.get("datetime", "---")))
         s.append(t % ("Optional section present", ("yes" if self._meta.get("sect2", False) else "no")))
         s.append(t % ("Compression", ("yes" if self._meta.get("comp", False) else "no")))
+        s.append(t % ("Number of data subsets", self._meta.get("subsets", "---")))
         return "\n".join(s)
 
     def load_tables(self):
@@ -246,12 +247,7 @@ class Bufr(object):
         tables_fail = None
         if tables:
             try:
-                self._tables = tab.load_tables.load_all(
-                        r['master'], r['center'], r['subcenter'], r['mver'],
-                        r['lver'], self._tab_p, self._tab_f
-                        )
-                if self._tables is None:
-                    tables_fail = BufrTableError("No table loaded!")
+                self._tables = self.load_tables()
             except StandardError or Warning as exc:
                 tables_fail = exc
 
