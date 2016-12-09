@@ -115,24 +115,28 @@ def load_tab_b(tables, fname):
         raise BufrTableError(_text_file_not_found % fname)
     with open(fname, "rb") as fh:
         for line in fh:
-            if line.startswith('#') or len(line) < 3:
-                continue
-            e = None
-            el_descr = int(line[1:7])
-            el_full_name = line[8:73].rstrip()
-            el_unit = line[73:98].rstrip()
-            el_scale = int(line[98:101])
-            el_refval = int(line[101:114])
-            el_width = int(line[114:118])
-            if el_unit == "CCITTIA5":
-                el_typ = "A"
-            elif el_unit.startswith("CODE") or el_unit.startswith("FLAG"):
-                el_typ = el_unit[0:1]
-            else:
-                el_typ = "N"
-            # descr, typ, unit, abbrev, full_name, scale, refval, width
-            e = TabBelem(el_descr, el_typ, el_unit, None, el_full_name, el_scale, el_refval, el_width)
-            tables.tab_b[int(el_descr)] = e
+            try:
+                if line.startswith('#') or len(line) < 3:
+                    continue
+                e = None
+                el_descr = int(line[1:7])
+                el_full_name = line[8:73].rstrip()
+                el_unit = line[73:98].rstrip()
+                el_scale = int(line[98:101])
+                el_refval = int(line[101:114])
+                el_width = int(line[114:118])
+                if el_unit == "CCITTIA5":
+                    el_typ = "A"
+                elif el_unit.startswith("CODE") or el_unit.startswith("FLAG"):
+                    el_typ = el_unit[0:1]
+                else:
+                    el_typ = "N"
+                # descr, typ, unit, abbrev, full_name, scale, refval, width
+                e = TabBelem(el_descr, el_typ, el_unit, None, el_full_name, el_scale, el_refval, el_width)
+                tables.tab_b[int(el_descr)] = e
+            except StandardError as exc:
+                logger.warning("Corrupt table %s (%s)", fname, line[0:8])
+                logger.warning(exc)
     return True
 
 def load_tab_c(tables, fname):
@@ -175,8 +179,9 @@ def load_tab_d(tables, fname):
                         e = []
                     desc = le[0]
                 e.append(int(le[-1]))
-            except BaseException as e:
-                raise BufrTableError(e)
+            except BaseException as exc:
+                logger.error(exc)
+                raise BufrTableError(exc)
     return True
 
 def load_tab_cf(tables, fname):
@@ -203,8 +208,9 @@ def load_tab_cf(tables, fname):
                     desc = int(le[0])
                 tables.tab_cf.setdefault(desc, {})[int(le[2])] = le[4]
                 la = le
-            except BaseException as e:
-                raise BufrTableError(e)
+            except BaseException as exc:
+                logger.error(exc)
+                raise BufrTableError(exc)
     return True
 
 def get_file(tabnum, base_path, master, center, subcenter, master_vers, local_vers):
