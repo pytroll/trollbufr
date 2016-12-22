@@ -12,3 +12,16 @@
 /TODO
 /.project
 /.pydevproject
+/build/
+/dist/
+/trollbufr.egg-info/
+/o.se
+/o.so
+/plot/
+/iasi_ctp.png
+/iasi_plot.old.txt
+/iedx61.png
+/out.1
+/out.2
+/out.plot.1
+/out.plot.2

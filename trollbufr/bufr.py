@@ -26,7 +26,7 @@ trollbufr.bufr.Bufr
 
 After decoding the meta-information use the iterator over the subsets.
 
-Each subset is held in an instance of class :class:`~trollbufr.read.Subset`, which has the iterator 
+Each subset is held in an instance of class :class:`~trollbufr.read.Subset`, which has the iterator
 function `next_data()` to iterate over all data elements in this subset.
 '''
 import tab.load_tables
@@ -184,7 +184,7 @@ class Bufr(object):
 
         .. IMPORTANT::
            allways consume all values from next_data() before retrieving the next report!
-        
+
         :return: first/next subset object
         :rtype: read.Subset
         :raise BufrDecodeWarning: recoverable error.
@@ -223,7 +223,7 @@ class Bufr(object):
         Decodes all meta-data of the BUFR.
 
         This function prepares the iterators for reading data.
-        
+
         :param string data: data object with complete BUFR
         :param bool tables: automatically load tables
         :raise BufrDecodeWarning: recoverable error.
