@@ -86,6 +86,12 @@ class Blob(object):
         b = self._point
         return self._data[a:b]
 
+    def skip_bits(self, width):
+        if not width:
+            return
+        self._point += (self._bitcons + width) // 8
+        self._bitcons = (self._bitcons + width) % 8
+
     def get_bits(self, width):
         """
         Read width bits from data[offset], leaving from_left bits of the first octet.

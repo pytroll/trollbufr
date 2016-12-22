@@ -24,31 +24,31 @@ Created on Sep 15, 2016
 
 @author: amaul
 '''
-
 import logging
 import os
 from importlib import import_module
-
 from errors import BufrTableError
 from tables import Tables
 
 logger = logging.getLogger("trollbufr")
 
-default_table_dir = "%s/.local/share/trollbufr" % (os.getenv('HOME'))
+MODULE_PATTERN = "trollbufr.tab.parse_%s"
+
+BUFR_TABLES_DEFAULT = "%s/.local/share/trollbufr" % (os.getenv('HOME'))
 
 _text_tab_loaded = "Table loaded: '%s'"
 
 def list_parser():
-    return ["eccodes", "libdwd"]
+    return ["eccodes", "libdwd", "bufrdc"]
 
 def load_all(master, center, subcenter, master_vers, local_vers, base_path, tabf="eccodes"):
     """Load all given versions of tables"""
     try:
-        tparse = import_module("trollbufr.tab.%s" % tabf)
+        tparse = import_module(MODULE_PATTERN % tabf)
     except:
         raise BufrTableError("Unknown table parser '%s'!" % tabf)
     if base_path is None:
-        base_path = default_table_dir
+        base_path = BUFR_TABLES_DEFAULT
     tables = Tables(master, master_vers, local_vers, center, subcenter)
     #
     # Table A (centres)

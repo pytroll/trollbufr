@@ -287,62 +287,62 @@ class Subset(object):
 
         elif dl[l_di] == 223000 or dl[l_di] == 223255:
             """Substituted values"""
-            raise NotImplementedError("Operator %06d not implemented.", dl[l_di])
+            raise NotImplementedError("Operator %06d not implemented."% dl[l_di])
 
         elif dl[l_di] == 224000 or dl[l_di] == 224255:
             """First-order statistical values"""
-            raise NotImplementedError("Operator %06d not implemented.", dl[l_di])
+            raise NotImplementedError("Operator %06d not implemented."% dl[l_di])
 
         elif dl[l_di] == 225000 or dl[l_di] == 225255:
             """Difference statistical values"""
-            raise NotImplementedError("Operator %06d not implemented.", dl[l_di])
+            raise NotImplementedError("Operator %06d not implemented."% dl[l_di])
 
         elif dl[l_di] == 232000 or dl[l_di] == 232255:
             """Replaced/retained vaules"""
-            raise NotImplementedError("Operator %06d not implemented.", dl[l_di])
+            raise NotImplementedError("Operator %06d not implemented."% dl[l_di])
 
         elif dl[l_di] == 235000:
             """Cancel backward data reference"""
-            raise NotImplementedError("Operator %06d not implemented.", dl[l_di])
+            raise NotImplementedError("Operator %06d not implemented."% dl[l_di])
 
         elif dl[l_di] == 236000:
             """Define data present bit-map"""
-            raise NotImplementedError("Operator %06d not implemented.", dl[l_di])
+            raise NotImplementedError("Operator %06d not implemented."% dl[l_di])
 
         elif dl[l_di] == 237000:
             """Use data present bit-map"""
-            raise NotImplementedError("Operator %06d not implemented.", dl[l_di])
+            raise NotImplementedError("Operator %06d not implemented."% dl[l_di])
 
         elif dl[l_di] == 237255:
             """Cancel data present bit-map"""
-            raise NotImplementedError("Operator %06d not implemented.", dl[l_di])
+            raise NotImplementedError("Operator %06d not implemented."% dl[l_di])
 
         elif dl[l_di] == 241000:
             """Define event"""
-            raise NotImplementedError("Operator %06d not implemented.", dl[l_di])
+            raise NotImplementedError("Operator %06d not implemented."% dl[l_di])
 
         elif dl[l_di] == 241255:
             """Cancel event"""
-            raise NotImplementedError("Operator %06d not implemented.", dl[l_di])
+            raise NotImplementedError("Operator %06d not implemented."% dl[l_di])
 
         elif dl[l_di] == 242000:
             """Define conditioning event"""
-            raise NotImplementedError("Operator %06d not implemented.", dl[l_di])
+            raise NotImplementedError("Operator %06d not implemented."% dl[l_di])
 
         elif dl[l_di] == 242255:
             """Cancel conditioning event"""
-            raise NotImplementedError("Operator %06d not implemented.", dl[l_di])
+            raise NotImplementedError("Operator %06d not implemented."% dl[l_di])
 
         elif dl[l_di] == 243000:
             """Categorial forecast values follow"""
-            raise NotImplementedError("Operator %06d not implemented.", dl[l_di])
+            raise NotImplementedError("Operator %06d not implemented."% dl[l_di])
 
         elif dl[l_di] == 243255:
             """Cancel categorial forecast"""
-            raise NotImplementedError("Operator %06d not implemented.", dl[l_di])
+            raise NotImplementedError("Operator %06d not implemented."% dl[l_di])
 
         else:
-            raise BufrDecodeError("Operator %06d not implemented.", dl[l_di])
+            raise BufrDecodeError("Operator %06d not implemented."% dl[l_di])
         return  l_di, l_rval
 
     def _read_refval(self, dl, di, de):
