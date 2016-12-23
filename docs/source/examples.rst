@@ -1,3 +1,5 @@
+.. examples_
+
 Examples
 ========
 
@@ -7,14 +9,15 @@ This gives good examples how to handle the class :class:`~trollbufr.bufr.Bufr`.
 
 trollbufr_read
 --------------
-* Reading data elements::
+
+- Reading data elements::
 	
 	trollbufr_read -t tables -r data/mw/TestBulletin_051
 
   Decoding all BUFR in the file TestBulletin_051, for each reading the data
   elements and writing the descriptor, short name, value, unit to STDOUT.
 
-* Simple list of descriptors::
+- Simple list of descriptors::
 	
 	trollbufr_read -t tables -T libdwd -sdb 1 data/mw/TestBulletin_051
 
