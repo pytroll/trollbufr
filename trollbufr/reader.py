@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2016 Alexander Maul
+# Copyright (c) 2016,2017 Alexander Maul
 #
 # Author(s):
 #
@@ -90,7 +90,8 @@ def read_bufr_data(args):
                                     print "%06d %-40s = %s %s" % (k, kn, str(v), ku)
             except StandardError as e:
                 print "ERROR\t%s" % e
-                logger.error(e)
+                if logger.isEnabledFor(logging.DEBUG):
+                    logger.exception(e)
 
 def read_bufr_desc(args):
     bufr_files = args.bufr
@@ -115,7 +116,8 @@ def read_bufr_desc(args):
                 print "DESC :\n%s" % "\n".join(d)
             except StandardError as e:
                 print "ERROR\t%s" % e
-                logger.error(e, exc_info=1)
+                if logger.isEnabledFor(logging.DEBUG):
+                    logger.exception(e)
 
 def run(argv=None):
     '''Command line options.'''
@@ -152,7 +154,7 @@ def run(argv=None):
                                 default=None,
                                 type=int,
                                 metavar="N",
-                                help="decode only bulletin #N in file"
+                                help="decode only bulletin #N in file (starts with '0')"
                                 )
         group_tab = parser.add_argument_group(title="table setting")
         group_tab.add_argument("-t", "--tables_path",
@@ -211,13 +213,10 @@ def run(argv=None):
 
     except KeyboardInterrupt:
         return 0
-#     except Exception, e:
-#         if DEBUG:
-#             raise(e)
-#         indent = len(program_name) * " "
-#         sys.stderr.write(program_name + ": " + repr(e) + "\n")
-#         sys.stderr.write(indent + "  for help use --help")
-#         return 2
+    except StandardError as e:
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.exception(e)
+        return 1
     return 0
 
 if __name__ == "__main__":
