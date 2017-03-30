@@ -109,15 +109,10 @@ class Bufr(object):
         """Load all tables referenced by the BUFR"""
         if not len(self._meta):
             raise BufrTableError("No table loaded!")
-        if self._tables is None or self._tables.differs(
-                        self._meta['master'], self._meta['mver'], self._meta['lver'],
-                        self._meta['center'], self._meta['subcenter']):
-            self._tables = tab.load_tables.load_all(
-                    self._meta['master'], self._meta['center'], self._meta['subcenter'], self._meta['mver'],
-                    self._meta['lver'], self._tab_p, self._tab_f
-                    )
-        else:
-            logger.debug("Table loading not neccessary")
+        self._tables = tab.load_tables.load_differ(self._tables,
+                self._meta['master'], self._meta['center'], self._meta['subcenter'], self._meta['mver'],
+                self._meta['lver'], self._tab_p, self._tab_f
+                )
         if self._tables is None:
             raise BufrTableError("No table loaded!")
         return self._tables
