@@ -4,3 +4,6 @@
 /load_tables.pyc
 /tables.pyc
 /errors.pyc
+/parse_bufrdc.pyc
+/parse_eccodes.pyc
+/parse_libdwd.pyc
