@@ -44,12 +44,11 @@ def str2num(octets):
     return v
 
 def octets2num(data, offset, count):
-    """
-    Convert character slice of length count from data (high->low) to int.
+    """Convert character slice of length count from data (high->low) to int.
 
     Returns offset+count, the character after the converted characters, and the integer value.
 
-    RETURN: offset,value
+    :return: offset,value
     """
     v = 0
     i = count - 1
@@ -59,13 +58,12 @@ def octets2num(data, offset, count):
     return offset + count, v
 
 def get_rval(data, comp, subs_num, tab_b_elem=None, alter=None, fix_width=None):
-    """
-    Read a raw value integer from the data section.
+    """Read a raw value integer from the data section.
 
     The number of bits are either fixed or determined from Tab.B and previous alteration operators.
     Compression is taken into account.
 
-    RETURN: raw value integer
+    :return: raw value integer
     """
     if fix_width is not None:
         loc_width = fix_width
@@ -101,17 +99,20 @@ def get_rval(data, comp, subs_num, tab_b_elem=None, alter=None, fix_width=None):
         return data.get_bits(loc_width)
 
 def cset2octets(data, loc_width, subs_num, btyp):
+    """Like Blob.get_bits(), but for compressed data.
+    
+    :return: octets
     """
-    Like Blob.get_bits(), but for compressed data.
-    RETURN: octets
-    """
+    # set all bits of width x to '1'
+    allone = lambda x:(1 << x) - 1
+
     min_val = data.get_bits(loc_width)
     cwidth = data.get_bits(6)
     if btyp == "string":
         cwidth *= 8
-    if min_val == (1 << loc_width) - 1:
+    if min_val == allone(loc_width):    # (1 << loc_width) - 1:
         # All missing
-        v = (1 << loc_width) - 1
+        v = allone(loc_width)   # (1 << loc_width) - 1
     elif cwidth == 0:
         # All equal
         v = min_val
@@ -119,8 +120,8 @@ def cset2octets(data, loc_width, subs_num, btyp):
         logger.debug("CSET loc_width %d  subnum %s  cwidth %d", loc_width, subs_num, cwidth)
         data.skip_bits(cwidth * subs_num[0])
         n = data.get_bits(cwidth)
-        if n == (1 << cwidth) - 1:
-            n = (1 << loc_width) - 1
+        if n == allone(cwidth):     # (1 << cwidth) - 1:
+            n = allone(loc_width)   # (1 << loc_width) - 1
         v = min_val + n
         data.skip_bits(cwidth * (subs_num[1] - subs_num[0] - 1))
     return v
@@ -137,7 +138,8 @@ def rval2str(rval):
     return val
 
 def rval2num(tab_b_elem, alter, rval):
-    """
+    """Return bit-sequence rval as a value.
+    
     Return the numeric value for all bits in rval decoded with descriptor descr,
     or type str if tab_b_elem describes a string.
     If the value was interpreted as "missing", None is returned.
@@ -147,15 +149,15 @@ def rval2num(tab_b_elem, alter, rval):
     * codetable/flags: int
     * IA5 characters: string
 
-    RETURN: value
+    :return: value
 
-    RAISE: KeyError if descr is not in table.
+    :raise: KeyError if descr is not in table.
     """
     # Default return value is "missing value"
     val = None
     # The "missing-value" bit-masks for IEEE float/double
-    _ieee32_miss = 0x7f7fffff
-    _ieee64_miss = 0x7fefffffffffffff
+    _IEEE32_INF = 0x7f7fffff
+    _IEEE64_INF = 0x7fefffffffffffff
 
     # Alter = {'wnum':0, 'wchr':0, 'refval':0, 'scale':0, 'assoc':0}
     if tab_b_elem.typ == "string" and alter['wchr']:
@@ -174,12 +176,12 @@ def rval2num(tab_b_elem, alter, rval):
         logger.debug("rval %d ==_(1<<%d)%d    #%06d/%d", rval, loc_width, (1 << loc_width) - 1, tab_b_elem.descr, tab_b_elem.descr / 1000)
         val = None
     elif alter['ieee'] and (tab_b_elem.typ == "double" or tab_b_elem.typ == "long"):
-        # IEEE 32b or 64b floating point number, INF means missing.
+        # IEEE 32b or 64b floating point number, INF means "missing value".
         if alter['ieee'] != 32 and alter['ieee'] != 64:
             raise BufrDecodeError("Invalid IEEE size %d" % alter['ieee'])
-        if alter['ieee'] == 32 and not rval ^ _ieee32_miss:
+        if alter['ieee'] == 32 and not rval ^ _IEEE32_INF:
             val = struct.unpack("f", rval)
-        elif alter['ieee'] == 64 and not rval ^ _ieee64_miss:
+        elif alter['ieee'] == 64 and not rval ^ _IEEE64_INF:
             val = struct.unpack("d", rval)
         else:
             val = None
@@ -206,7 +208,8 @@ def b2s(n):
     return "".join([('1' if n & (m >> i) else '0') for i in range(0, 8 * a)])
 
 def dtg(octets, ed=4):
-    """
+    """Interpret octet sequence as datetime object.
+    
     Ed.3: year [yy], month, day, hour, minute
     Ed.4: year [yyyy], month, day, hour, minute, second
     """

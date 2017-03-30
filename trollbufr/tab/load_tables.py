@@ -42,6 +42,7 @@ def list_parser():
     return ["eccodes", "libdwd", "bufrdc"]
 
 def load_differ(tables, master, center, subcenter, master_vers, local_vers, base_path, tabf="eccodes"):
+    """Load tables, if the versions differ from those already loaded."""
     if tables is None or tables.differs(master, master_vers, local_vers, center, subcenter):
         tables = load_all(master, center, subcenter, master_vers, local_vers, base_path, tabf)
     else:
