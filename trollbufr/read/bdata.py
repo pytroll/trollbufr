@@ -87,17 +87,20 @@ class Blob(object):
         return self._data[a:b]
 
     def skip_bits(self, width):
+        """Skip width bits.
+        
+        Move internal pointer when some bits don't need processing.
+        :return: Void.
+        """
         if not width:
             return
         self._point += (self._bitcons + width) // 8
         self._bitcons = (self._bitcons + width) % 8
 
     def get_bits(self, width):
-        """
-        Read width bits from data[offset], leaving from_left bits of the first octet.
-        Returns a character buffer which needs further decoding.
-
-        RETURN: character buffer
+        """Read width bits from internal buffer.
+        
+        :return: character buffer, which needs further decoding.
         """
         n = 0
         x = 0
