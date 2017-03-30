@@ -214,7 +214,7 @@ def load_tab_cf(tables, fname):
     return True
 
 def get_file(tabnum, base_path, master, center, subcenter, master_vers, local_vers):
-    mp = lp = os.path.join(base_path, "bufrtables")
+    mp = lp = base_path
     m = os.path.join(mp, _table_file_names[tabnum] % (0, 0, 0, master_vers, 0))
     l = os.path.join(lp, _table_file_names[tabnum] % (0, 0, center, master_vers, local_vers))
     return (m, l)

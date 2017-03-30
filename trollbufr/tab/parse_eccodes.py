@@ -195,8 +195,8 @@ def load_tab_cf(tables, fname):
     return True
 
 def get_file(tabnum, base_path, master, center, subcenter, master_vers, local_vers):
-    mp = os.path.join(base_path, "bufr", "tables", str(master), "wmo", str(master_vers))
-    lp = os.path.join(base_path, "bufr", "tables", str(master), "local", str(local_vers), str(center), str(subcenter))
+    mp = os.path.join(base_path, str(master), "wmo", str(master_vers))
+    lp = os.path.join(base_path, str(master), "local", str(local_vers), str(center), str(subcenter))
     if '%' in _table_file_names[tabnum]:
         m = os.path.join(mp, _table_file_names[tabnum] % (master_vers))
         l = os.path.join(lp, _table_file_names[tabnum] % (local_vers))
