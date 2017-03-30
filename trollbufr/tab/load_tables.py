@@ -41,6 +41,13 @@ _text_tab_loaded = "Table loaded: '%s'"
 def list_parser():
     return ["eccodes", "libdwd", "bufrdc"]
 
+def load_differ(tables, master, center, subcenter, master_vers, local_vers, base_path, tabf="eccodes"):
+    if tables is None or tables.differs(master, master_vers, local_vers, center, subcenter):
+        tables = load_all(master, center, subcenter, master_vers, local_vers, base_path, tabf)
+    else:
+        logger.debug("Table loading not neccessary")
+    return tables
+
 def load_all(master, center, subcenter, master_vers, local_vers, base_path, tabf="eccodes"):
     """Load all given versions of tables"""
     try:
@@ -144,7 +151,7 @@ def test_b():
 
 
 def test_a():
-    base_path = "%s/Perforce/pybufr/tables" % (os.getenv('HOME'))
+    base_path = "%s/BUFRtables" % (os.getenv('HOME'))
     master = 0
     center = 78
     subcenter = 0
