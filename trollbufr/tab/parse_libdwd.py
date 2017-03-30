@@ -27,6 +27,7 @@ Created on Sep 15, 2016
 
 import logging
 import os
+import re
 
 from errors import BufrTableError
 from tables import TabBelem
@@ -101,17 +102,23 @@ def load_tab_b(tables, fname):
     """Load table B (elements) from 'fname' into object Tables."""
     if not os.path.exists(fname):
         raise BufrTableError(_text_file_not_found % fname)
-    with open(fname, "rb") as fh:
-        for line in fh:
-            if line.startswith('#') or len(line) < 3:
-                continue
-            e = None
-            el = line.rstrip().split('\t')
-            #  0          1            2         3            4                 5                    6
-            # "FXY<tab>libDWDType<tab>unit<tab>scale<tab>referenceValue<tab>dataWidth_Bits<tab>descriptor_name<lf>"
-            # descr, typ, unit, abbrev, full_name, scale, refval, width
-            e = TabBelem(int(el[0]), el[1], el[2], None, el[6], int(el[3]), int(el[4]), int(el[5]))
-            tables.tab_b[int(el[0])] = e
+    try:
+        #  1          2            3         4            5                 6                    7
+        # "FXY<tab>libDWDType<tab>unit<tab>scale<tab>referenceValue<tab>dataWidth_Bits<tab>descriptor_name<lf>"
+        re_fl = re.compile(r"^(\d+)(?:\t|\s+)(\w)(?:\t|\s+)(.+?)(?:\t|\s+)([0-9-]+)(?:\t|\s+)([0-9-]+)(?:\t|\s+)([0-9-]+)(?:\t|\s+)(.+)$")
+        with open(fname, "rb") as fh:
+            for line in fh:
+                if line.startswith('#') or len(line) < 3:
+                    continue
+                m = re_fl.match(line)
+                if m is None:
+                    continue
+                # descr, typ, unit, abbrev, full_name, scale, refval, width
+                e = TabBelem(int(m.group(1)), m.group(2), m.group(3), None, m.group(7),
+                             int(m.group(4)), int(m.group(5)), int(m.group(6)))
+                tables.tab_b[int(m.group(1))] = e
+    except StandardError as err:
+        logger.error(err, exc_info=1)
     return True
 
 def load_tab_c(tables, fname):
@@ -183,8 +190,8 @@ def load_tab_cf(tables, fname):
     return True
 
 def get_file(tabnum, base_path, master, center, subcenter, master_vers, local_vers):
-    mp = os.path.join(base_path, "libDWD")
-    lp = os.path.join(base_path, "libDWD", "local_%05d_%05d" % (center, subcenter))
+    mp = base_path
+    lp = os.path.join(base_path, "local_%05d_%05d" % (center, subcenter))
     if '%' in _table_file_names[tabnum]:
         m = os.path.join(mp, _table_file_names[tabnum] % (master_vers))
         l = os.path.join(lp, _table_file_names[tabnum] % (local_vers))
