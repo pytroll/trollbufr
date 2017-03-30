@@ -115,7 +115,7 @@ def read_bufr_desc(args):
                 print "DESC :\n%s" % "\n".join(d)
             except StandardError as e:
                 print "ERROR\t%s" % e
-                logger.error(e)
+                logger.error(e, exc_info=1)
 
 def run(argv=None):
     '''Command line options.'''
@@ -181,6 +181,8 @@ def run(argv=None):
         # Process arguments
         args = parser.parse_args()
 
+        handler = logging.StreamHandler()
+        log_formater_line = "[%(levelname)s] %(message)s"
         if not args.verbose:
             loglevel = logging.WARN
         else:
@@ -188,9 +190,8 @@ def run(argv=None):
                 loglevel = logging.INFO
             elif args.verbose >= 2:
                 loglevel = logging.DEBUG
-        handler = logging.StreamHandler()
-        handler.setFormatter(logging.Formatter(
-                "[%(levelname)s: %(module)s] %(message)s"))
+                log_formater_line = "[%(levelname)s: %(module)s:%(lineno)d] %(message)s"
+        handler.setFormatter(logging.Formatter(log_formater_line))
         handler.setLevel(loglevel)
         logging.getLogger('').setLevel(loglevel)
         logging.getLogger('').addHandler(handler)
