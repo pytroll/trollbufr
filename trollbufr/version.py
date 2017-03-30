@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2016 Alexander Maul
+# Copyright (c) 2016,2017 Alexander Maul
 #
 # Author(s):
 #
@@ -24,7 +24,7 @@
 """
 
 __major__ = "0"
-__minor__ = "1"
+__minor__ = "2"
 __patch__ = "0"
 
 __version__ = ".".join([__major__, __minor__, __patch__])
