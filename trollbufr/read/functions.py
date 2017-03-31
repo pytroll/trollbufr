@@ -100,19 +100,19 @@ def get_rval(data, comp, subs_num, tab_b_elem=None, alter=None, fix_width=None):
 
 def cset2octets(data, loc_width, subs_num, btyp):
     """Like Blob.get_bits(), but for compressed data.
-    
+
     :return: octets
     """
     # set all bits of width x to '1'
-    allone = lambda x:(1 << x) - 1
+    all_one = lambda x: (1 << x) - 1
 
     min_val = data.get_bits(loc_width)
     cwidth = data.get_bits(6)
     if btyp == "string":
         cwidth *= 8
-    if min_val == allone(loc_width):    # (1 << loc_width) - 1:
+    if min_val == all_one(loc_width):
         # All missing
-        v = allone(loc_width)   # (1 << loc_width) - 1
+        v = all_one(loc_width)
     elif cwidth == 0:
         # All equal
         v = min_val
@@ -120,8 +120,8 @@ def cset2octets(data, loc_width, subs_num, btyp):
         logger.debug("CSET loc_width %d  subnum %s  cwidth %d", loc_width, subs_num, cwidth)
         data.skip_bits(cwidth * subs_num[0])
         n = data.get_bits(cwidth)
-        if n == allone(cwidth):     # (1 << cwidth) - 1:
-            n = allone(loc_width)   # (1 << loc_width) - 1
+        if n == all_one(cwidth):
+            n = all_one(loc_width)
         v = min_val + n
         data.skip_bits(cwidth * (subs_num[1] - subs_num[0] - 1))
     return v
@@ -139,7 +139,7 @@ def rval2str(rval):
 
 def rval2num(tab_b_elem, alter, rval):
     """Return bit-sequence rval as a value.
-    
+
     Return the numeric value for all bits in rval decoded with descriptor descr,
     or type str if tab_b_elem describes a string.
     If the value was interpreted as "missing", None is returned.
@@ -209,7 +209,7 @@ def b2s(n):
 
 def dtg(octets, ed=4):
     """Interpret octet sequence as datetime object.
-    
+
     Ed.3: year [yy], month, day, hour, minute
     Ed.4: year [yyyy], month, day, hour, minute, second
     """
