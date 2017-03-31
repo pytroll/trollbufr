@@ -74,6 +74,8 @@ def load_tab_cf(tables, fname):
 	pass
 
 def get_file(tabnum, base_path, master, center, subcenter, master_vers, local_vers):
+#     master_path = os.path.join(base_path, "")
+#     local_path = os.path.join(base_path, "", "%05d_%05d" % (center, subcenter))
     master_path = base_path
     local_path = os.path.join(base_path, "%05d_%05d" % (center, subcenter))
     if '%' in _table_file_names[tabnum]:
