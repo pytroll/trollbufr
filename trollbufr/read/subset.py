@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2016 Alexander Maul
+# Copyright (c) 2016,2017 Alexander Maul
 #
 # Author(s):
 #
@@ -19,7 +19,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 trollbufr-Subset
 ================
 The class doing all decoding, table-loading, etc in the right order.
@@ -27,8 +27,9 @@ The class doing all decoding, table-loading, etc in the right order.
 Created on Oct 28, 2016
 
 @author: amaul
-'''
-import functions as f
+"""
+import functions as fun
+import operator as op
 from errors import BufrDecodeError
 import logging
 
@@ -67,8 +68,7 @@ class Subset(object):
         return "Subset #%d/%d, decoding:%s" % (self.subs_num, self.inprogress)
 
     def next_data(self):
-        """
-        Iterator for Sect. 4 data
+        """Iterator for Sect. 4 data.
 
         This generator will decode BUFR data.
 
@@ -84,7 +84,16 @@ class Subset(object):
                      this and REP END are to be repeated #n times.
         - REP END  : End of desriptor and data repetition.
 
-        RETURN: desc, mark, (value, quality)
+        :return: desc, mark, (value, quality)
+        """
+        """
+        FIXME: yield namedtuple instead of tuple
+
+        >>> from collections import namedtuple
+        >>> Point = namedtuple('Point', ['x', 'y'])
+        >>> p = Point(11, y=22)   # instantiate with positional or keyword arguments
+        >>> print p[0]            # access by index
+        >>> print p.y             # access by name
         """
         if self._blob.p < 0 or self._data_e < 0 or self._blob.p >= self._data_e:
             raise BufrDecodeError("Data section start/end not initialised!")
@@ -128,13 +137,13 @@ class Subset(object):
                     # They are handled in compression in same manner as other descr,
                     # with fix width from assoc-field-stack.
                     if self._alter['assoc'][-1] and (dl[di] < 31000 or dl[di] > 32000):
-                        qual = f.get_rval(self._blob, self.is_compressed, self.subs_num, fix_width=self._alter['assoc'][-1])
+                        qual = fun.get_rval(self._blob, self.is_compressed, self.subs_num, fix_width=self._alter['assoc'][-1])
                     else:
                         qual = None
                     elem_b = self._tables.tab_b[dl[di]]
                     di += 1
-                    foo = f.get_rval(self._blob, self.is_compressed, self.subs_num, elem_b, self._alter)
-                    v = f.rval2num(elem_b, self._alter, foo)
+                    foo = fun.get_rval(self._blob, self.is_compressed, self.subs_num, elem_b, self._alter)
+                    v = fun.rval2num(elem_b, self._alter, foo)
                     # This is the main yield
                     yield elem_b.descr, mark, (v, qual)
 
@@ -156,7 +165,7 @@ class Subset(object):
                         elem_b = self._tables.tab_b[dl[di]]
                         di += 1
                         # TODO: are the 031xxx really not altered?
-                        ln = f.get_rval(self._blob, self.is_compressed, self.subs_num, fix_width=elem_b.width)
+                        ln = fun.get_rval(self._blob, self.is_compressed, self.subs_num, fix_width=elem_b.width)
                         # Descriptors 31011+31012 mean repetition, not replication
                         ir = elem_b.descr >= 31010 and elem_b.descr <= 31012
                         logger.debug("%s %d %d -> %d from %06d", "REPT" if ir else "LOOP", lm, 0, ln, elem_b.descr)
@@ -184,9 +193,9 @@ class Subset(object):
 
                 elif dl[di] >= 200000 and dl[di] < 300000:
                     """Operator descritor, alter/modify properties"""
-                    di, v = self._eval_oper(dl, di, de)
+                    di, v = op.eval_oper(self, dl, di, de)
                     if v is not None:
-                        # If the operator (signify) returned a value, yield it
+                        # If the operator "signify" returned a value, yield it
                         yield v
                     di += 1
 
@@ -213,152 +222,21 @@ class Subset(object):
         logger.debug("SUBSET END (%s)" % self._blob)
         raise StopIteration
 
-    def _eval_oper(self, dl, di, de):
-        """
-        Evaluate operator, read octets from data section if necessary.
-        RETURN: di, (desc,mark,(value,qual))|None
-        """
-        l_di = di
-        l_rval = None
-        if dl[l_di] < 222000:
-            am = dl[l_di] // 1000 - 200
-            an = dl[l_di] % 1000
-            logger.debug("OP %d %d", am, an)
-            if am == 1:
-                """Change data width"""
-                self._alter['wnum'] = an - 128 if an else 0
-            elif am == 2:
-                """Change scale"""
-                self._alter['scale'] = an - 128 if an else 0
-            elif am == 3:
-                """Set of new reference values"""
-                if an == 0:
-                    self._alter['refval'] = {}
-                else:
-                    l_di = self._read_refval(dl, l_di, de)
-                    logger.debug("OP refval -> %s" % self._alter['refval'])
-            elif am == 4:
-                """Add associated field, shall be followed by 031021"""
-                # Manages stack for associated field, the value added last shall be used.
-                if an == 0:
-                    self._alter['assoc'].pop()
-                    if not len(self._alter['assoc']):
-                        self._alter['assoc'] = [0]
-                else:
-                    self._alter['assoc'].append(self._alter['assoc'][-1] + an)
-            elif am == 5:
-                """Signify with characters, plain language text as returned value"""
-                foo = f.get_rval(self._blob, self.is_compressed, self.subs_num, fix_width=an * 8)
-                v = f.rval2str(foo)
-                logger.debug("OP text -> '%s'", v)
-                # Special rval for plain character
-                l_rval = (dl[l_di], None, (v, None))
-            elif am == 6:
-                """Length of local descriptor"""
-                f.get_rval(self._blob, self.is_compressed, self.subs_num, fix_width=an)
-                l_di += 1
-            elif am == 7:
-                if an == 0:
-                    self._alter['scale'] = 0
-                    self._alter['refmul'] = 1
-                    self._alter['wnum'] = 0
-                else:
-                    self._alter['scale'] = an
-                    self._alter['refmul'] = 10 ^ an
-                    self._alter['wnum'] = ((10 * an) + 2) / 3
-            elif am == 8:
-                """Change data width for characters"""
-                self._alter['wchr'] = an * 8 if an else 0
-            elif am == 9:
-                """IEEE floating point representation"""
-                self._alter['ieee'] = an
-            elif am == 21:
-                """Data not present"""
-                self._skip_data = an
-            else:
-                raise BufrDecodeError("Operator %06d not implemented.", dl[l_di])
-
-        elif dl[l_di] == 222000:
-            """Quality Assessment Information"""
-            logger.debug("OP %d", dl[l_di])
-            en = self._tables.tab_c.get(dl[l_di], ("Operator",))
-            # An additional rval for operators where no further action is required
-            l_rval = (dl[l_di], None, (en[0], None))
-
-        elif dl[l_di] == 223000 or dl[l_di] == 223255:
-            """Substituted values"""
-            raise NotImplementedError("Operator %06d not implemented."% dl[l_di])
-
-        elif dl[l_di] == 224000 or dl[l_di] == 224255:
-            """First-order statistical values"""
-            raise NotImplementedError("Operator %06d not implemented."% dl[l_di])
-
-        elif dl[l_di] == 225000 or dl[l_di] == 225255:
-            """Difference statistical values"""
-            raise NotImplementedError("Operator %06d not implemented."% dl[l_di])
-
-        elif dl[l_di] == 232000 or dl[l_di] == 232255:
-            """Replaced/retained vaules"""
-            raise NotImplementedError("Operator %06d not implemented."% dl[l_di])
-
-        elif dl[l_di] == 235000:
-            """Cancel backward data reference"""
-            raise NotImplementedError("Operator %06d not implemented."% dl[l_di])
-
-        elif dl[l_di] == 236000:
-            """Define data present bit-map"""
-            raise NotImplementedError("Operator %06d not implemented."% dl[l_di])
-
-        elif dl[l_di] == 237000:
-            """Use data present bit-map"""
-            raise NotImplementedError("Operator %06d not implemented."% dl[l_di])
-
-        elif dl[l_di] == 237255:
-            """Cancel data present bit-map"""
-            raise NotImplementedError("Operator %06d not implemented."% dl[l_di])
-
-        elif dl[l_di] == 241000:
-            """Define event"""
-            raise NotImplementedError("Operator %06d not implemented."% dl[l_di])
-
-        elif dl[l_di] == 241255:
-            """Cancel event"""
-            raise NotImplementedError("Operator %06d not implemented."% dl[l_di])
-
-        elif dl[l_di] == 242000:
-            """Define conditioning event"""
-            raise NotImplementedError("Operator %06d not implemented."% dl[l_di])
-
-        elif dl[l_di] == 242255:
-            """Cancel conditioning event"""
-            raise NotImplementedError("Operator %06d not implemented."% dl[l_di])
-
-        elif dl[l_di] == 243000:
-            """Categorial forecast values follow"""
-            raise NotImplementedError("Operator %06d not implemented."% dl[l_di])
-
-        elif dl[l_di] == 243255:
-            """Cancel categorial forecast"""
-            raise NotImplementedError("Operator %06d not implemented."% dl[l_di])
-
-        else:
-            raise BufrDecodeError("Operator %06d not implemented."% dl[l_di])
-        return  l_di, l_rval
-
     def _read_refval(self, dl, di, de):
-        """
+        """Set new reference values.
+
         Reads a set of YYY bits, taking them as new reference values for the descriptors of the set.
         YYY is taken from the current descriptor dl[di], reference values are set for
         all subsequent following descriptors until the descriptor signaling the end of operation occurs.
 
-        RETURN: number of new reference values
+        :return: number of new reference values
         """
         i = di
         rl = {}
         an = dl[i] % 1000
         i += 1
         while i < de:
-            rval = f.get_rval(self._blob, self.is_compressed, self.subs_num, fix_width=an)
+            rval = fun.get_rval(self._blob, self.is_compressed, self.subs_num, fix_width=an)
             # Sign=high-bit
             sign = -1 if 1 << (an - 1) else 1
             # Value=val&(FFF>>1)
