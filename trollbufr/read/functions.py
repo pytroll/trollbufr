@@ -70,14 +70,13 @@ def get_rval(data, comp, subs_num, tab_b_elem=None, alter=None, fix_width=None):
         logger.debug("OCTETS       : w+a:_+_ fw:%d qual:_ bc:%d #%d->ord(%02X)" ,
                     fix_width, data.bc, data.p, ord(data[data.p])
                     )
+    elif tab_b_elem is not None and tab_b_elem.descr >= 31000 or tab_b_elem.descr < 32000:
+        # replication/repetition descriptor (group 31) is never altered.
+        loc_width = tab_b_elem.width
+        logger.debug("OCTETS %06d: w+a:_+_ fw:(%d) qual:_ bc:%d #%d->ord(%02X)" ,
+                    tab_b_elem.descr, fix_width, data.bc, data.p, ord(data[data.p])
+                    )
     elif tab_b_elem is not None and alter is not None:
-        #
-        # TODO: special handling for replication/repetition descriptor?
-        #
-#         if tab_b_elem.descr >= 10000 and (tab_b_elem.descr < 31000 or tab_b_elem.descr >= 31020):
-#             pass
-#         if tab_b_elem.descr >= 31000 or tab_b_elem.descr < 31020:
-#             loc_width = tab_b_elem.width
         if tab_b_elem.typ == "string" and alter['wchr']:
             loc_width = alter['wchr']
         elif tab_b_elem.typ == "double" or tab_b_elem.typ == "long":
