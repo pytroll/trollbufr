@@ -238,7 +238,7 @@ class Subset(object):
         while i < de:
             rval = fun.get_rval(self._blob, self.is_compressed, self.subs_num, fix_width=an)
             # Sign=high-bit
-            sign = -1 if 1 << (an - 1) else 1
+            sign = -1 if (1 << (an - 1)) & rval else 1
             # Value=val&(FFF>>1)
             val = ((1 << an) - 1) & rval
             rl[dl[i]] = sign * val
