@@ -20,7 +20,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 '''
-Functions decoding the sections 0-5 for all the meta-data. 
+Functions decoding the sections 0-5 for all the meta-data.
 No data values from section 4 are decoded.
 
 Created on Nov 18, 2016
@@ -30,6 +30,7 @@ Created on Nov 18, 2016
 import logging
 logger = logging.getLogger("trollbufr")
 import functions as f
+from read.errors import BufrDecodeError
 
 """
 Section 0
@@ -152,13 +153,15 @@ def decode_sect3(data, offset):
     """
     rd = {}
     o, l = f.octets2num(data, offset, 3)
+    if offset + l >= len(data):
+        raise BufrDecodeError("SECT_3: invalid length (%d > %d)" % (offset + l, len(data)))
     o += 1 # reserved octet
     o, rd['subsets'] = f.octets2num(data, o, 2)
     o, fl = f.octets2num(data, o, 1)
     rd['obs'] = True if fl & 128 else False
     rd['comp'] = True if fl & 64 else False
     desc = []
-    while o < offset + l:
+    while o < offset + l - 1:
         df = ord(data[o]) >> 6
         dx = ord(data[o]) & 63
         o += 1

@@ -67,14 +67,14 @@ def get_rval(data, comp, subs_num, tab_b_elem=None, alter=None, fix_width=None):
     """
     if fix_width is not None:
         loc_width = fix_width
-        logger.debug("OCTETS       : w+a:_+_ fw:%d qual:_ bc:%d #%d->ord(%02X)" ,
+        logger.debug("OCTETS       : FXW w+a:_+_ fw:%d qual:_ bc:%d #%d->ord(%02X)" ,
                     fix_width, data.bc, data.p, ord(data[data.p])
                     )
-    elif tab_b_elem is not None and tab_b_elem.descr >= 31000 or tab_b_elem.descr < 32000:
+    elif tab_b_elem is not None and (tab_b_elem.descr >= 31000 and tab_b_elem.descr < 32000):
         # replication/repetition descriptor (group 31) is never altered.
         loc_width = tab_b_elem.width
-        logger.debug("OCTETS %06d: w+a:_+_ fw:(%d) qual:_ bc:%d #%d->ord(%02X)" ,
-                    tab_b_elem.descr, fix_width, data.bc, data.p, ord(data[data.p])
+        logger.debug("OCTETS %06d: NAL w+a:_+_ fw:_ qual:_ bc:%d #%d->ord(%02X)" ,
+                    tab_b_elem.descr, data.bc, data.p, ord(data[data.p])
                     )
     elif tab_b_elem is not None and alter is not None:
         if tab_b_elem.typ == "string" and alter['wchr']:
@@ -86,7 +86,7 @@ def get_rval(data, comp, subs_num, tab_b_elem=None, alter=None, fix_width=None):
                 loc_width = tab_b_elem.width + alter['wnum']
         else:
             loc_width = tab_b_elem.width
-        logger.debug("OCTETS %06d: w+a:%d%+d fw:_ qual:%d bc:%d #%d->ord(%02X)" ,
+        logger.debug("OCTETS %06d:     w+a:%d%+d fw:_ qual:%d bc:%d #%d->ord(%02X)" ,
                     tab_b_elem.descr, tab_b_elem.width, alter['wnum'], alter['assoc'][-1],
                     data.bc, data.p, ord(data[data.p])
                     )
