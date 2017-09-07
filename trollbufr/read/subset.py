@@ -121,6 +121,7 @@ class Subset(object):
 
                 if self._skip_data:
                     """Data not present: data is limited to class 01-09,31"""
+                    logger.debug("skip %d", self._skip_data)
                     self._skip_data -= 1
                     if dl[di] >= 10000 and dl[di] % 1000 != 31:
                         di += 1
@@ -155,7 +156,7 @@ class Subset(object):
                     # number of replication
                     ln = dl[di] % 1000
                     # Repetition?
-                    ir = False
+                    is_rep = False
                     # Increase di to start-of-loop
                     di += 1
                     if ln == 0:
@@ -167,15 +168,15 @@ class Subset(object):
                         # TODO: are the 031xxx really not altered?
                         ln = fun.get_rval(self._blob, self.is_compressed, self.subs_num, fix_width=elem_b.width)
                         # Descriptors 31011+31012 mean repetition, not replication
-                        ir = elem_b.descr >= 31010 and elem_b.descr <= 31012
-                        logger.debug("%s %d %d -> %d from %06d", "REPT" if ir else "LOOP", lm, 0, ln, elem_b.descr)
+                        is_rep = elem_b.descr >= 31010 and elem_b.descr <= 31012
+                        logger.debug("%s %d %d -> %d from %06d", "REPT" if is_rep else "LOOP", lm, 0, ln, elem_b.descr)
                         if ln == 255:
                             ln = 0
                     else:
                         logger.debug("LOOP %d %d" % (lm, ln))
                     # Current list on stack (di points after looped descr)
                     logger.debug("PUSH jump -> *%d %d..%d" , len(dl), di + lm, de)
-                    if ir:
+                    if is_rep:
                         if ln:
                             stack.append((dl, di + lm, de, "REP END"))
                             stack.append((dl, di, di + lm, "REP %d" % ln))

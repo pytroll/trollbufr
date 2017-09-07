@@ -33,6 +33,8 @@ class Tables(object):
     '''
     classdocs
     '''
+    # TODO: move class attr to init, make them instance attr. Or it won't pickle.
+    
     # { code -> meaning }
     tab_a = dict()
 

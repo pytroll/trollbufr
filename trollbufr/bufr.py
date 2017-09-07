@@ -38,6 +38,9 @@ import logging
 
 logger = logging.getLogger("trollbufr")
 
+# List of supported BUFR editions
+SUPPORTED_BUFR_EDITION = (3, 4)
+
 class Bufr(object):
     """Holds and decodes a BUFR"""
     # Holds byte array with bufr
@@ -202,10 +205,14 @@ class Bufr(object):
             subset = Subset(self._tables, self._blob, self._desc, self._compressed, (i, self._subsets), self._data_e)
             yield subset
             i += 1
-        # Padding for data pointer if necessary
+            # Padding bits (and to next even byte) for data pointer if necessary
+            if self._edition < 4:
+                data_p = self._blob.p + (self._blob.bc and 1)
+                data_p += data_p & 1
+                logger.debug("Padding  p:%d  bc:%d  -->  p:%d", self._blob.p , self._blob.bc, data_p)
+                self._blob.reset(data_p)
+        # Padding bits after last subset
         data_p = self._blob.p + (self._blob.bc and 1)
-        if self._edition < 4:
-            data_p += data_p & 1
         self._blob.reset(data_p)
         # Check if sect.5 is reached
         if data_p != self._data_e or self._blob[data_p, data_p + 4] != "7777":
@@ -234,6 +241,8 @@ class Bufr(object):
         self._meta.update(r)
         self._edition = r['edition']
         logger.debug("SECT_0\t offs:%d len:%d = %s" , o, l, r)
+        if self._edition not in SUPPORTED_BUFR_EDITION:
+            raise BufrDecodeError("BUFR edition %d not supported" % self._edition)
 
         o, l, r = sect.decode_sect1(self._blob, o, edition=self._edition)
         self._meta.update(r)
