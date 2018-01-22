@@ -9,7 +9,7 @@ Download a TDCF table archive:
 
 - zip-files (``bufrtables_*.zip``) in this project.
 - eg. from `ECMWF eccodes <https://software.ecmwf.int/wiki/display/ECC/ecCodes+Home>`_.
-- DWD's public `FTP server for GDS <http://www.dwd.de/EN/ourservices/gds/gds.html>`_.
+- DWD's `OpenData server <https://opendata.dwd.de/weather/lib/bufr/>`_.
 - Or other sources.
 
 If the files ``operator.table`` and/or ``datacat.table`` are not present in the
