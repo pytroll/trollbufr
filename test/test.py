@@ -69,5 +69,5 @@ class TestBUFRFile(unittest.TestCase):
             break
 
 if __name__ == "__main__":
-    unittest.main()
+    unittest.run()
 
