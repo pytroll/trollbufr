@@ -1,135 +1,136 @@
-#!/usr/local/bin/python2.7
-# encoding: utf-8
-'''
-base.update -- shortdesc
-
-base.update is a description
-
-It defines classes_and_methods
-
-@author:     user_name
-
-@copyright:  2016 organization_name. All rights reserved.
-
-@license:    license
-
-@contact:    user_email
-@deffield    updated: Updated
-'''
-
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
+# Copyright (c) 2016,2018 Alexander Maul
+#
+# Author(s):
+#
+#   Alexander Maul <alexander.maul@dwd.de>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses//gpl.html>.
+"""
+TrollBUFR - table update.
+"""
 import sys
 import os
 
+import urllib2
 from argparse import ArgumentParser
 from argparse import RawDescriptionHelpFormatter
 
-__all__ = []
-__version__ = 0.1
-__date__ = '2016-09-15'
-__updated__ = '2016-09-15'
+import logging
+logger = logging.getLogger("trollbufr")
 
-DEBUG = 1
-TESTRUN = 0
-PROFILE = 0
+__version__ = "0.1.0"
 
-class CLIError(Exception):
-    '''Generic exception to raise and log different fatal errors.'''
-    def __init__(self, msg):
-        super(CLIError).__init__(type(self))
-        self.msg = "E: %s" % msg
-    def __str__(self):
-        return self.msg
-    def __unicode__(self):
-        return self.msg
+E_OK = 0
+E_ARG = 1
+E_ERR = 2
 
-def main(argv=None): # IGNORE:C0111
-    '''Command line options.'''
 
+def arg_parser():
+    program_name = os.path.basename(sys.argv[0])
+    # Setup argument parser
+    parser = ArgumentParser(description=__import__('__main__').__doc__,
+                            formatter_class=RawDescriptionHelpFormatter
+                            )
+    parser.add_argument("-v", "--verbose",
+                        dest="verbose",
+                        action="count",
+                        help="set verbosity level [default: %(default)s]"
+                        )
+    parser.add_argument('-V', '--version',
+                        action='version',
+                        version="%s %s" % (program_name, __version__)
+                        )
+    parser.add_argument("-t", "--tables-path",
+                        default=os.getenv("BUFR_TABLES"),
+                        help="path to tables, if not set in $BUFR_TABLES",
+                        metavar="PATH"
+                        )
+    parser.add_argument("-F", "--url-file",
+                        help="File with URL list",
+                        metavar="FILE",
+                        )
+    parser.add_argument("-U", "--url",
+                        help="URL for table archive",
+                        metavar="URL",
+                        nargs="+"
+                        )
+    # Process arguments
+    args = parser.parse_args()
+    # Setup logger
+    handler = logging.StreamHandler()
+    log_formater_line = "[%(levelname)s] %(message)s"
+    if not args.verbose:
+        loglevel = logging.WARN
+    else:
+        if args.verbose == 1:
+            loglevel = logging.INFO
+        elif args.verbose >= 2:
+            loglevel = logging.DEBUG
+            log_formater_line = "[%(levelname)s: %(module)s:%(lineno)d] %(message)s"
+    handler.setFormatter(logging.Formatter(log_formater_line))
+    handler.setLevel(loglevel)
+    logging.getLogger('').setLevel(loglevel)
+    logging.getLogger('').addHandler(handler)
+    # Return arguments
+    return args
+
+
+def run(argv=None):
+    """Command line options."""
     if argv is None:
         argv = sys.argv
     else:
         sys.argv.extend(argv)
-
-    program_name = os.path.basename(sys.argv[0])
-    program_version = "v%s" % __version__
-    program_build_date = str(__updated__)
-    program_version_message = '%%(prog)s %s (%s)' % (program_version, program_build_date)
-    program_shortdesc = __import__('__main__').__doc__.split("\n")[1]
-    program_license = '''%s
-
-  Created by user_name on %s.
-  Copyright 2016 organization_name. All rights reserved.
-
-  Licensed under the Apache License 2.0
-  http://www.apache.org/licenses/LICENSE-2.0
-
-  Distributed on an "AS IS" basis without warranties
-  or conditions of any kind, either express or implied.
-
-USAGE
-''' % (program_shortdesc, str(__date__))
-
+    args = arg_parser()
+    if args.url:
+        url_list = args.url
+        logger.debug("URLs from args")
+    elif args.url_file:
+        url_list = []
+        with open(args.url_file, "r") as fh_url:
+            for line in fh_url:
+                url_list.append(line.strip())
+    else:
+        sys.stderr.write("URL or URL-file missing!\n")
+        return 1
     try:
-        # Setup argument parser
-        parser = ArgumentParser(description=program_license, formatter_class=RawDescriptionHelpFormatter)
-        parser.add_argument("-r", "--recursive", dest="recurse", action="store_true", help="recurse into subfolders [default: %(default)s]")
-        parser.add_argument("-v", "--verbose", dest="verbose", action="count", help="set verbosity level [default: %(default)s]")
-        parser.add_argument("-i", "--include", dest="include", help="only include paths matching this regex pattern. Note: exclude is given preference over include. [default: %(default)s]", metavar="RE" )
-        parser.add_argument("-e", "--exclude", dest="exclude", help="exclude paths matching this regex pattern. [default: %(default)s]", metavar="RE" )
-        parser.add_argument('-V', '--version', action='version', version=program_version_message)
-        parser.add_argument(dest="paths", help="paths to folder(s) with source file(s) [default: %(default)s]", metavar="path", nargs='+')
-
-        # Process arguments
-        args = parser.parse_args()
-
-        paths = args.paths
-        verbose = args.verbose
-        recurse = args.recurse
-        inpat = args.include
-        expat = args.exclude
-
-        if verbose > 0:
-            print("Verbose mode on")
-            if recurse:
-                print("Recursive mode on")
-            else:
-                print("Recursive mode off")
-
-        if inpat and expat and inpat == expat:
-            raise CLIError("include and exclude pattern are equal! Nothing will be processed.")
-
-        for inpath in paths:
-            ### do something with inpath ###
-            print(inpath)
-        return 0
+        logger.debug("Sources: %s", url_list)
+        logger.debug("Destination: %s", args.tables_path)
+        for url in url_list:
+            arc_name = url.split("/")[-1]
+            arc_dest = os.path.join(args.tables_path, arc_name)
+            if not os.path.exists(args.tables_path):
+                logger.warning("Path does not exist: %s", args.tables_path)
+                return E_ARG
+            with open(arc_dest, "w") as dest:
+                logger.info("Download %s", url)
+                response = urllib2.urlopen(url)
+                dest.write(response.read())
     except KeyboardInterrupt:
         ### handle keyboard interrupt ###
-        return 0
-    except Exception, e:
-        if DEBUG or TESTRUN:
+        return E_OK
+    except Exception as e:
+        if logger.isEnabledFor(logging.DEBUG):
             raise(e)
-        indent = len(program_name) * " "
-        sys.stderr.write(program_name + ": " + repr(e) + "\n")
-        sys.stderr.write(indent + "  for help use --help")
-        return 2
+        sys.stderr.write(os.path.basename(sys.argv[0]) + " : " + repr(e) + "\n")
+        sys.stderr.write("    for help use --help")
+        return E_ERR
+    return E_OK
+
 
 if __name__ == "__main__":
-    if DEBUG:
-        sys.argv.append("-h")
-        sys.argv.append("-v")
-        sys.argv.append("-r")
-    if TESTRUN:
-        import doctest
-        doctest.testmod()
-    if PROFILE:
-        import cProfile
-        import pstats
-        profile_filename = 'base.update_profile.txt'
-        cProfile.run('main()', profile_filename)
-        statsfile = open("profile_stats.txt", "wb")
-        p = pstats.Stats(profile_filename, stream=statsfile)
-        stats = p.strip_dirs().sort_stats('cumulative')
-        stats.print_stats()
-        statsfile.close()
-        sys.exit(0)
-    sys.exit(main())
+    sys.exit(run())

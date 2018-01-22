@@ -10,7 +10,7 @@ _(C) 2016 Alexander Maul_
 ## BUFR-Tables
 TDCF table sets are provided as zip-archives in different formats, or go to:
 * [ECMWF eccodes](https://software.ecmwf.int/wiki/display/ECC/ecCodes+Home).
-* [DWD's public FTP server for GDS](http://www.dwd.de/EN/ourservices/gds/gds.html).
+* [DWD's OpenData server](https://opendata.dwd.de/weather/lib/bufr/).
 
 If files `operator.table` and/or `datacat.table` are not present in your table 
 directory, there are standard ones in this project's root. 
