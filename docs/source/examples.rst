@@ -24,6 +24,18 @@ trollbufr_read
   Using the table-format `libdwd` and decoding only the first BUFR in the file, 
   writing the un-expanded list of descriptors (without names, etc.) to STDOUT.
 
+trollbufr_update
+----------------
+Download archive file(s) from Internet resources to update the BUFR table files.
+
+- URL(s) on command-line::
+
+	trollbufr_update -t tables -U https://opendata.dwd.de/weather/lib/bufr/bufrtables_libdwd.tar.bz2
+
+- Set of URLs in a file::
+
+	trollbufr_update -t tables -F bufr_table_archives.txt
+
 Bufr
 ----
 Simple example for handling class :class:`Bufr`::

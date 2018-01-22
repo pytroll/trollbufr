@@ -30,7 +30,7 @@ Created on Nov 18, 2016
 import logging
 logger = logging.getLogger("trollbufr")
 import functions as f
-from read.errors import BufrDecodeError
+from errors import BufrDecodeError
 
 """
 Section 0
