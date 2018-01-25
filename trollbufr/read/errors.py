@@ -25,25 +25,30 @@ Created on Nov 4, 2016
 @author: amaul
 '''
 
+
 class BufrDecodeError(StandardError):
     '''Error class, raised if anything prevents further decoding'''
+
     def __init__(self, msg):
         super(BufrDecodeError).__init__(type(self))
         self.msg = "BufrDecodeError: %s" % msg
+
     def __str__(self):
         return self.msg
+
     def __unicode__(self):
         return self.msg
 
 
 class BufrDecodeWarning(Warning):
     '''Warning class, raised at recoverable faults'''
+
     def __init__(self, msg):
         super(BufrDecodeError).__init__(type(self))
         self.msg = "BufrDecodeWarning: %s" % msg
+
     def __str__(self):
         return self.msg
+
     def __unicode__(self):
         return self.msg
-
-

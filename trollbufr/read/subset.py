@@ -35,6 +35,7 @@ import logging
 
 logger = logging.getLogger("trollbufr")
 
+
 class Subset(object):
     # Numbering of this subset (this, total)
     subs_num = (-1, -1)
@@ -84,7 +85,7 @@ class Subset(object):
                      this and REP END are to be repeated #n times.
         - REP END  : End of desriptor and data repetition.
 
-        :return: desc, mark, (value, quality)
+        :yield: desc, mark, (value, quality)
         """
         """
         FIXME: yield namedtuple instead of tuple
@@ -105,7 +106,7 @@ class Subset(object):
         # Alterator values, this resets them at the beginning of the iterator.
         self._alter = self._reset_alter()
         # For start put list on stack
-        logger.debug("PUSH start -> *%d %d..%d" , len(self._desc), 0, len(self._desc))
+        logger.debug("PUSH start -> *%d %d..%d", len(self._desc), 0, len(self._desc))
         stack.append((self._desc, 0, len(self._desc), "SUB"))
         while len(stack):
             """Loop while descriptor lists on stack"""
@@ -113,7 +114,7 @@ class Subset(object):
             # di : index for current descriptor list
             # de : stop when reaching this index
             dl, di, de, mark = stack.pop()
-            logger.debug("POP *%d %d..%d (%s)" , len(dl), di, de, mark)
+            logger.debug("POP *%d %d..%d (%s)", len(dl), di, de, mark)
             yield None, mark, (None, None)
             mark = None
             while di < de and self._blob.p < self._data_e:
@@ -127,18 +128,19 @@ class Subset(object):
                         di += 1
                         continue
 
-                if dl[di] == 0:
+                if fun.is_nil(dl[di]):
                     """Null-descriptor to signal end-of-list"""
                     di += 1
 
-                elif dl[di] > 0 and dl[di] < 100000:
+                elif fun.is_data(dl[di]):
                     """Element descriptor, decoding bits to value"""
                     # Associated fields (for qualifier) preceede the elements value,
                     # their width is set by an operator descr.
                     # They are handled in compression in same manner as other descr,
                     # with fix width from assoc-field-stack.
                     if self._alter['assoc'][-1] and (dl[di] < 31000 or dl[di] > 32000):
-                        qual = fun.get_rval(self._blob, self.is_compressed, self.subs_num, fix_width=self._alter['assoc'][-1])
+                        qual = fun.get_rval(self._blob, self.is_compressed, self.subs_num,
+                                            fix_width=self._alter['assoc'][-1])
                     else:
                         qual = None
                     elem_b = self._tables.tab_b[dl[di]]
@@ -148,7 +150,7 @@ class Subset(object):
                     # This is the main yield
                     yield elem_b.descr, mark, (v, qual)
 
-                elif dl[di] >= 100000 and dl[di] < 200000:
+                elif fun.is_loop(dl[di]):
                     """Replication descriptor, loop/iterator, replication or repetition"""
                     # Decode loop-descr:
                     # amount of descr
@@ -165,7 +167,6 @@ class Subset(object):
                             raise BufrDecodeError("No count for  delayed loop!")
                         elem_b = self._tables.tab_b[dl[di]]
                         di += 1
-                        # TODO: are the 031xxx really not altered?
                         ln = fun.get_rval(self._blob, self.is_compressed, self.subs_num, fix_width=elem_b.width)
                         # Descriptors 31011+31012 mean repetition, not replication
                         is_rep = elem_b.descr >= 31010 and elem_b.descr <= 31012
@@ -175,7 +176,7 @@ class Subset(object):
                     else:
                         logger.debug("LOOP %d %d" % (lm, ln))
                     # Current list on stack (di points after looped descr)
-                    logger.debug("PUSH jump -> *%d %d..%d" , len(dl), di + lm, de)
+                    logger.debug("PUSH jump -> *%d %d..%d", len(dl), di + lm, de)
                     if is_rep:
                         if ln:
                             stack.append((dl, di + lm, de, "REP END"))
@@ -186,13 +187,13 @@ class Subset(object):
                         stack.append((dl, di + lm, de, "RPL %s" % ("END" if ln else "NIL")))
                         while ln:
                             # N*list on stack
-                            logger.debug("PUSH loop -> *%d %d..%d" , len(dl), di , di + lm)
+                            logger.debug("PUSH loop -> *%d %d..%d", len(dl), di, di + lm)
                             stack.append((dl, di, di + lm, "RPL %d" % ln))
                             ln -= 1
                     # Causes inner while to end
                     di = de
 
-                elif dl[di] >= 200000 and dl[di] < 300000:
+                elif fun.is_oper(dl[di]):
                     """Operator descritor, alter/modify properties"""
                     di, v = op.eval_oper(self, dl, di, de)
                     if v is not None:
@@ -200,17 +201,17 @@ class Subset(object):
                         yield v
                     di += 1
 
-                elif dl[di] >= 300000 and dl[di] < 400000:
+                elif fun.is_seq(dl[di]):
                     """Sequence descriptor, replaces current descriptor with expansion"""
-                    logger.debug("SEQ %06d" , dl[di])
+                    logger.debug("SEQ %06d", dl[di])
                     # Current on stack
-                    logger.debug("PUSH jump -> *%d %d..%d" , len(dl), di + 1, de)
+                    logger.debug("PUSH jump -> *%d %d..%d", len(dl), di + 1, de)
                     stack.append((dl, di + 1, de, "SEQ END"))
                     prevdesc = dl[di]
                     # Sequence from tabD
                     dl = self._tables.tab_d[dl[di]]
                     # Expansion on stack
-                    logger.debug("PUSH seq -> *%d %d..%d" , len(dl), 0, len(dl))
+                    logger.debug("PUSH seq -> *%d %d..%d", len(dl), 0, len(dl))
                     stack.append((dl, 0, len(dl), "SEQ %06d" % prevdesc))
                     # Causes inner while to end
                     di = de
@@ -252,12 +253,11 @@ class Subset(object):
 
     def _reset_alter(self):
         return {
-                'wnum':0, # Add to width, for number data fields.
-                'wchr':0, # Change width for string data fields.
-                'refval':{}, # {desc:ref}, dict with new reference values for descriptors.
-                'refmul':1, # Multiplier, for all reference values of following descriptors (207yyy).
-                'scale':0, # Add to scale, for number data fields.
-                'assoc':[0], # Add width for associated quality field. A stack, always use last value.
-                'ieee':0, # 0|32|64 All numerical values encoded as IEEE floating point number.
-                }
-
+            'wnum': 0,  # Add to width, for number data fields.
+            'wchr': 0,  # Change width for string data fields.
+            'refval': {},  # {desc:ref}, dict with new reference values for descriptors.
+            'refmul': 1,  # Multiplier, for all reference values of following descriptors (207yyy).
+            'scale': 0,  # Add to scale, for number data fields.
+            'assoc': [0],  # Add width for associated quality field. A stack, always use last value.
+            'ieee': 0,  # 0|32|64 All numerical values encoded as IEEE floating point number.
+        }

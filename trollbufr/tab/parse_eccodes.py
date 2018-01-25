@@ -73,8 +73,9 @@ _table_file_names = {
     "C": "../../../operators.table",
     "D": "sequence.def",
     "CF": "codetables",
-    }
+}
 _text_file_not_found = "Table not found: '%s'"
+
 
 def load_tab_a(tables, fname):
     """Load table A (data category) from 'fname' into object Tables."""
@@ -94,6 +95,7 @@ def load_tab_a(tables, fname):
             e = el[1]
             tables.tab_a[int(d)] = e
     return True
+
 
 def load_tab_b(tables, fname):
     """Load table B (elements) from 'fname' into object Tables."""
@@ -120,6 +122,7 @@ def load_tab_b(tables, fname):
             tables.tab_b[int(el[0])] = e
     return True
 
+
 def load_tab_c(tables, fname):
     """Load table C (operators) from 'fname' into object Tables."""
     if not os.path.exists(fname):
@@ -141,6 +144,7 @@ def load_tab_c(tables, fname):
             else:
                 tables.tab_c[int(d)] = e
     return True
+
 
 def load_tab_d(tables, fname):
     """Load table D (sequences) from 'fname' into object Tables."""
@@ -172,6 +176,7 @@ def load_tab_d(tables, fname):
             cline = ""
     return True
 
+
 def load_tab_cf(tables, fname):
     """
     Load table E (code- and flagtables) into object Tables.
@@ -194,6 +199,7 @@ def load_tab_cf(tables, fname):
                     logger.warn("Table parse: no values: '%s' in '%s'", line.strip(), fn_etab)
     return True
 
+
 def get_file(tabnum, base_path, master, center, subcenter, master_vers, local_vers):
     mp = os.path.join(base_path, str(master), "wmo", str(master_vers))
     lp = os.path.join(base_path, str(master), "local", str(local_vers), str(center), str(subcenter))
@@ -204,4 +210,3 @@ def get_file(tabnum, base_path, master, center, subcenter, master_vers, local_ve
         m = os.path.join(mp, _table_file_names[tabnum])
         l = os.path.join(lp, _table_file_names[tabnum])
     return (m, l)
-

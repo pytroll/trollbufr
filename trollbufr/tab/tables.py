@@ -29,12 +29,13 @@ Created on Sep 15, 2016
 import logging
 logger = logging.getLogger("trollbufr")
 
+
 class Tables(object):
     '''
     classdocs
     '''
     # TODO: move class attr to init, make them instance attr. Or it won't pickle.
-    
+
     # { code -> meaning }
     tab_a = dict()
 
@@ -109,7 +110,7 @@ class Tables(object):
             if b is None:
                 return ("UNKN", "")
             if b.abbrev is not None:
-                return (b.abbrev  , b.unit)
+                return (b.abbrev, b.unit)
             else:
                 return (b.full_name, b.unit)
         elif descr >= 200000 and descr < 300000:
@@ -138,7 +139,7 @@ class TabBelem(object):
     width = 0
 
     def __init__(self, descr, typ, unit, abbrev, full_name, scale, refval, width):
-        _type_dwd = { "A":'string', "N":"???", "C":"code", "F":"flag"}
+        _type_dwd = {"A": 'string', "N": "???", "C": "code", "F": "flag"}
         self.descr = descr
         if typ in _type_dwd:
             if typ == "N":
@@ -164,4 +165,3 @@ class TabBelem(object):
             return "%06d : '%s' (%s) [%s]" % (self.descr, self.full_name, self.typ, self.unit)
         else:
             return "%s : '%s' (%s) [%s]" % (self.descr, self.full_name, self.typ, self.unit)
-
