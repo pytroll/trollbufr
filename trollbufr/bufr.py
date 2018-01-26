@@ -140,7 +140,10 @@ class Bufr(object):
                     desc_text.append("%06d : LOOP, %d desc., %d times" % (dl[di], lm, ln))
                     di += 1
                 elif is_oper(dl[di]):
-                    en = self._tables.tab_c.get(dl[di])
+                    if dl[di] in self._tables.tab_c:
+                        en = self._tables.tab_c.get(dl[di])
+                    else:
+                        en = self._tables.tab_c.get(dl[di] // 1000)
                     am = dl[di] // 1000 - 200
                     an = dl[di] % 1000
                     if en is None:
