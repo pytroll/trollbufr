@@ -139,7 +139,7 @@ def load_tab_c(tables, fname):
             #   0       1      2                3
             # Edition, FXY, OperatorName_en, OperationDefinition_en
             d = el[1]
-            e = (el[2], el[3])
+            e = (el[2].strip(), el[3].strip())
             if d.endswith("YYY"):
                 tables.tab_c[int(d[0:3])] = e
             else:

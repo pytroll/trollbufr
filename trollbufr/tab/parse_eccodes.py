@@ -138,7 +138,7 @@ def load_tab_c(tables, fname):
             # code|abbreviation|type|name|unit|scale|reference|width|crex_unit|crex_scale|crex_width
             #  y     y           n    y    n...
             d = el[0]
-            e = (el[1], el[3])
+            e = (el[1].strip(), el[3].strip())
             if d.endswith("YYY"):
                 tables.tab_c[int(d[0:3])] = e
             else:

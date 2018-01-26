@@ -113,8 +113,11 @@ class Tables(object):
                 return (b.abbrev, b.unit)
             else:
                 return (b.full_name, b.unit)
-        elif descr >= 200000 and descr < 300000:
-            c = self.tab_c.get(descr)
+        elif 200000 < descr < 300000:
+            if descr in self.tab_c:
+                c = self.tab_c.get(descr)
+            else:
+                c = self.tab_c.get(descr // 1000)
             if c is None:
                 return ("UNKN", "")
             return (c[0], "")
