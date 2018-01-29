@@ -35,6 +35,7 @@ logger = logging.getLogger("trollbufr")
 """This RE matches any Abbreviated Heading Line"""
 _re_ahl = re.compile(r"[^A-Z0-9]*?([A-Z]{4}[0-9]{2} [A-Z]{4} [0-9]{6}(?: [ACR][A-Z]{2})?)[^A-Z0-9]+")
 
+
 def next_bufr(path=None, data=None):
     '''
     Generator:
@@ -58,7 +59,7 @@ def next_bufr(path=None, data=None):
     while offs < len(data):
         # Search for next BUFR
         bstart = offs
-        while data[bstart : bstart + 4] != "BUFR":
+        while data[bstart: bstart + 4] != "BUFR":
             bstart += 1
             if bstart >= len(data) - 30:
                 # reached end-of-data
@@ -68,7 +69,7 @@ def next_bufr(path=None, data=None):
         logger.debug("SEARCH AHL : %d - %d %s : %d matches > %s",
                      offs,
                      bstart,
-                     data[bstart : bstart + 4],
+                     data[bstart: bstart + 4],
                      0 if m is None else len(m.groups()),
                      0 if m is None else m.groups()[0]
                      )
@@ -80,24 +81,24 @@ def next_bufr(path=None, data=None):
         offs = bstart
         # Read size of bufr
         offs += 4
-        size = f.str2num(data[offs : offs + 3])
+        size = f.str2num(data[offs: offs + 3])
         # Set end of bufr and skip to there
         bend = bstart + size
         offs = bend
         # Check if end is correct
-        if data[bend - 4 : bend] != "7777":
+        if data[bend - 4: bend] != "7777":
             # The bufr is corrupt if section5 is not correct
             logger.error("End '7777' not found")
             raise BufrDecodeWarning("Bufr offset/length error!")
-        bufr = Blob(data[bstart : bend])
-        logger.debug("LOADED %d B, %d - %d", bend - bstart, bstart , bend)
+        bufr = Blob(data[bstart: bend])
+        logger.debug("LOADED %d B, %d - %d", bend - bstart, bstart, bend)
         # This generator returns one entry
         yield (bufr, size, header)
     raise StopIteration
+
 
 if __name__ == "__main__":
     import sys
     print sys.argv
     for b in next_bufr(path=sys.argv[1]):
         print b
-

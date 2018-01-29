@@ -39,6 +39,8 @@ Section 0
 4-6    Total length
 7      BUFR-edition
 """
+
+
 def decode_sect0(data, offset):
     """
     RETURN offset, length, {size, edition}
@@ -49,7 +51,8 @@ def decode_sect0(data, offset):
     o += 4
     o, l = f.octets2num(data, o, 3)
     o, e = f.octets2num(data, o, 1)
-    return o, 8, {'size':l, 'edition':e}
+    return o, 8, {'size': l, 'edition': e}
+
 
 """
 Section 1
@@ -94,20 +97,22 @@ BUFR Vers. 4
 21    Second
 (22-n Reserved)
 """
+
+
 def decode_sect1(data, offset, edition=4):
     """
     RETURN offset, length, {master, center, subcenter, update, cat, cat_int, cat_loc, mver, lver, datetime, sect2}
     """
     key_offs = {
-                3:(("length", 0, 2), ("master", 3, 3), ("center", 5, 5), ("subcenter", 4 , 4),
-                   ("update", 6, 6), ("cat", 8, 8), ("cat_int", 9, 9), ("cat_loc", 9, 9),
-                   ("mver", 10, 10), ("lver", 11, 11), ("datetime", 12 , 16), ("sect2", 7, 7),
-                ),
-                4:(("length", 0, 2), ("master", 3, 3), ("center", 4, 5), ("subcenter", 6 , 7),
-                   ("update", 8, 8), ("cat", 10, 10), ("cat_int", 11, 11), ("cat_loc", 12, 12),
-                   ("mver", 13, 13), ("lver", 14, 14), ("datetime", 15 , 21), ("sect2", 9, 9),
-                ),
-            }
+        3: (("length", 0, 2), ("master", 3, 3), ("center", 5, 5), ("subcenter", 4, 4),
+            ("update", 6, 6), ("cat", 8, 8), ("cat_int", 9, 9), ("cat_loc", 9, 9),
+            ("mver", 10, 10), ("lver", 11, 11), ("datetime", 12, 16), ("sect2", 7, 7),
+            ),
+        4: (("length", 0, 2), ("master", 3, 3), ("center", 4, 5), ("subcenter", 6, 7),
+            ("update", 8, 8), ("cat", 10, 10), ("cat_int", 11, 11), ("cat_loc", 12, 12),
+            ("mver", 13, 13), ("lver", 14, 14), ("datetime", 15, 21), ("sect2", 9, 9),
+            ),
+    }
     rd = {}
     for t in key_offs[edition]:
         if t[1] is None:
@@ -120,6 +125,7 @@ def decode_sect1(data, offset, edition=4):
     l = int(rd.pop('length'))
     return offset + l, l, rd
 
+
 """
 Section 2
 =========
@@ -127,12 +133,15 @@ Section 2
 3     Reserved
 4-n   Local data
 """
+
+
 def decode_sect2(data, offset):
     """
     RETURN offset, length, {}
     """
     _, l = f.octets2num(data, offset, 3)
     return offset + l, l, {}
+
 
 """
 Section 3
@@ -145,6 +154,8 @@ Section 3
         FXXYYY: F = 2bit, & 0xC000 ; XX = 6bit, & 0x3F00 ; YYY = 8bit, & 0xFF
         F=0: element/Tab.B, F=1: repetition, F=2: operator/Tab.C, F=3: sequence/Tab.D
 """
+
+
 def decode_sect3(data, offset):
     """
     Use {}[desc] for data-iterator iter_data().
@@ -155,7 +166,7 @@ def decode_sect3(data, offset):
     o, l = f.octets2num(data, offset, 3)
     if offset + l >= len(data):
         raise BufrDecodeError("SECT_3: invalid length (%d > %d)" % (offset + l, len(data)))
-    o += 1 # reserved octet
+    o += 1  # reserved octet
     o, rd['subsets'] = f.octets2num(data, o, 2)
     o, fl = f.octets2num(data, o, 1)
     rd['obs'] = True if fl & 128 else False
@@ -171,6 +182,7 @@ def decode_sect3(data, offset):
     rd['descr'] = desc
     return offset + l, l, rd
 
+
 """
 Section 4
 =========
@@ -178,18 +190,23 @@ Section 4
 3     Reserved
 4-n   Data
 """
+
+
 def decode_sect4(data, offset):
     """
     RETURN offset, length, {data_start, data_end}
     """
     o, l = f.octets2num(data, offset, 3)
-    return offset + l, l, { 'data_start':o + 1, 'data_end':offset + l}
+    return offset + l, l, {'data_start': o + 1, 'data_end': offset + l}
+
 
 """
 Section 5
 =========
 0-3   "7777"
 """
+
+
 def decode_sect5(data, offset):
     """
     RETURN offset, length, {}
@@ -198,5 +215,3 @@ def decode_sect5(data, offset):
         return offset + 4, 4, {}
     else:
         return -1, -1, {}
-
-

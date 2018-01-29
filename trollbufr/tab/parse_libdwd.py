@@ -71,13 +71,14 @@ logger = logging.getLogger("trollbufr")
 """
 
 _table_file_names = {
-            "A": "datacat.table",
-            "B": "table_b_%03d",
-            "C": "operator.table",
-            "D": "table_d_%03d",
-            "CF": "codeflags_%03d",
-        }
+    "A": "datacat.table",
+    "B": "table_b_%03d",
+    "C": "operator.table",
+    "D": "table_d_%03d",
+    "CF": "codeflags_%03d",
+}
 _text_file_not_found = "Table not found: '%s'"
+
 
 def load_tab_a(tables, fname):
     """Load table A (data category) from 'fname' into object Tables."""
@@ -98,6 +99,7 @@ def load_tab_a(tables, fname):
             tables.tab_a[int(d)] = e
     return True
 
+
 def load_tab_b(tables, fname):
     """Load table B (elements) from 'fname' into object Tables."""
     if not os.path.exists(fname):
@@ -105,7 +107,8 @@ def load_tab_b(tables, fname):
     try:
         #  1          2            3         4            5                 6                    7
         # "FXY<tab>libDWDType<tab>unit<tab>scale<tab>referenceValue<tab>dataWidth_Bits<tab>descriptor_name<lf>"
-        re_fl = re.compile(r"^(\d+)(?:\t|\s+)(\w)(?:\t|\s+)(.+?)(?:\t|\s+)([0-9-]+)(?:\t|\s+)([0-9-]+)(?:\t|\s+)([0-9-]+)(?:\t|\s+)(.+)$")
+        re_fl = re.compile(
+            r"^(\d+)(?:\t|\s+)(\w)(?:\t|\s+)(.+?)(?:\t|\s+)([0-9-]+)(?:\t|\s+)([0-9-]+)(?:\t|\s+)([0-9-]+)(?:\t|\s+)(.+)$")
         with open(fname, "rb") as fh:
             for line in fh:
                 if line.startswith('#') or len(line) < 3:
@@ -121,6 +124,7 @@ def load_tab_b(tables, fname):
         logger.error(err, exc_info=1)
     return True
 
+
 def load_tab_c(tables, fname):
     """Load table C (operators) from 'fname' into object Tables."""
     if not os.path.exists(fname):
@@ -135,12 +139,13 @@ def load_tab_c(tables, fname):
             #   0       1      2                3
             # Edition, FXY, OperatorName_en, OperationDefinition_en
             d = el[1]
-            e = (el[2], el[3])
+            e = (el[2].strip(), el[3].strip())
             if d.endswith("YYY"):
                 tables.tab_c[int(d[0:3])] = e
             else:
                 tables.tab_c[int(d)] = e
     return True
+
 
 def load_tab_d(tables, fname):
     """Load table D (sequences) from 'fname' into object Tables."""
@@ -163,6 +168,7 @@ def load_tab_d(tables, fname):
             except BaseException as e:
                 raise BufrTableError(e)
     return True
+
 
 def load_tab_cf(tables, fname):
     """
@@ -189,6 +195,7 @@ def load_tab_cf(tables, fname):
                 raise BufrTableError(e)
     return True
 
+
 def get_file(tabnum, base_path, master, center, subcenter, master_vers, local_vers):
     mp = base_path
     lp = os.path.join(base_path, "local_%05d_%05d" % (center, subcenter))
@@ -199,4 +206,3 @@ def get_file(tabnum, base_path, master, center, subcenter, master_vers, local_ve
         m = os.path.join(mp, _table_file_names[tabnum])
         l = os.path.join(lp, _table_file_names[tabnum])
     return (m, l)
-

@@ -32,6 +32,7 @@ function `next_data()` to iterate over all data elements in this subset.
 import tab.load_tables
 import read.bufr_sect as sect
 from read.subset import Subset
+from read.functions import (is_data, is_loop, is_oper, is_seq, is_nil)
 from read.errors import BufrDecodeError, BufrDecodeWarning
 from tab.errors import BufrTableError
 import logging
@@ -40,6 +41,7 @@ logger = logging.getLogger("trollbufr")
 
 # List of supported BUFR editions
 SUPPORTED_BUFR_EDITION = (3, 4)
+
 
 class Bufr(object):
     """Holds and decodes a BUFR"""
@@ -113,9 +115,9 @@ class Bufr(object):
         if not len(self._meta):
             raise BufrTableError("No table loaded!")
         self._tables = tab.load_tables.load_differ(self._tables,
-                self._meta['master'], self._meta['center'], self._meta['subcenter'], self._meta['mver'],
-                self._meta['lver'], self._tab_p, self._tab_f
-                )
+                                                   self._meta['master'], self._meta['center'], self._meta['subcenter'], self._meta['mver'],
+                                                   self._meta['lver'], self._tab_p, self._tab_f
+                                                   )
         if self._tables is None:
             raise BufrTableError("No table loaded!")
         return self._tables
@@ -127,18 +129,21 @@ class Bufr(object):
         while stack:
             dl, di = stack.pop()
             while di < len(dl):
-                if dl[di] == 0:
+                if is_nil(dl[di]):
                     di += 1
-                elif dl[di] > 0 and dl[di] < 100000:
+                elif is_data(dl[di]):
                     desc_text.append(str(self._tables.tab_b[dl[di]]))
                     di += 1
-                elif dl[di] >= 100000 and dl[di] < 200000:
+                elif is_loop(dl[di]):
                     lm = dl[di] // 1000 - 100
                     ln = dl[di] % 1000
-                    desc_text.append("%06d : LOOP, %d desc., %d times" % (dl[di], lm , ln))
+                    desc_text.append("%06d : LOOP, %d desc., %d times" % (dl[di], lm, ln))
                     di += 1
-                elif dl[di] >= 200000 and dl[di] < 300000:
-                    en = self._tables.tab_c.get(dl[di])
+                elif is_oper(dl[di]):
+                    if dl[di] in self._tables.tab_c:
+                        en = self._tables.tab_c.get(dl[di])
+                    else:
+                        en = self._tables.tab_c.get(dl[di] // 1000)
                     am = dl[di] // 1000 - 200
                     an = dl[di] % 1000
                     if en is None:
@@ -148,7 +153,7 @@ class Bufr(object):
                     else:
                         desc_text.append("%06d : OPERATOR '%s'" % (dl[di], en[0]))
                     di += 1
-                elif dl[di] >= 300000 and dl[di] < 400000:
+                elif is_seq(dl[di]):
                     stack.append((dl, di + 1))
                     da = dl[di]
                     dl = self._tables.tab_d[dl[di]]
@@ -163,15 +168,15 @@ class Bufr(object):
         while stack:
             dl, di = stack.pop()
             while di < len(dl):
-                if dl[di] == 0:
+                if is_nil(dl[di]):
                     di += 1
-                elif dl[di] > 0 and dl[di] < 100000:
+                elif is_data(dl[di]):
                     desc_text.append("%06d" % dl[di])
-                elif dl[di] >= 100000 and dl[di] < 200000:
+                elif is_loop(dl[di]):
                     desc_text.append("%06d LOOP" % dl[di])
-                elif dl[di] >= 200000 and dl[di] < 300000:
+                elif is_oper(dl[di]):
                     desc_text.append("%06d OPER" % dl[di])
-                elif dl[di] >= 300000 and dl[di] < 400000:
+                elif is_seq(dl[di]):
                     desc_text.append("%06d SEQ" % dl[di])
                 di += 1
         return desc_text
@@ -209,7 +214,7 @@ class Bufr(object):
             if self._edition < 4:
                 data_p = self._blob.p + (self._blob.bc and 1)
                 data_p += data_p & 1
-                logger.debug("Padding  p:%d  bc:%d  -->  p:%d", self._blob.p , self._blob.bc, data_p)
+                logger.debug("Padding  p:%d  bc:%d  -->  p:%d", self._blob.p, self._blob.bc, data_p)
                 self._blob.reset(data_p)
         # Padding bits after last subset
         data_p = self._blob.p + (self._blob.bc and 1)
@@ -240,13 +245,13 @@ class Bufr(object):
         o, l, r = sect.decode_sect0(self._blob, 0)
         self._meta.update(r)
         self._edition = r['edition']
-        logger.debug("SECT_0\t offs:%d len:%d = %s" , o, l, r)
+        logger.debug("SECT_0\t offs:%d len:%d = %s", o, l, r)
         if self._edition not in SUPPORTED_BUFR_EDITION:
             raise BufrDecodeError("BUFR edition %d not supported" % self._edition)
 
         o, l, r = sect.decode_sect1(self._blob, o, edition=self._edition)
         self._meta.update(r)
-        logger.debug("SECT_1\t offs:%d len:%d = %s" , o, l, r)
+        logger.debug("SECT_1\t offs:%d len:%d = %s", o, l, r)
 
         tables_fail = None
         if tables:
@@ -258,35 +263,34 @@ class Bufr(object):
         if r['sect2']:
             o, l, r = sect.decode_sect2(self._blob, o)
             self._meta.update(r)
-            logger.debug("SECT_2\t offs:%d len:%d = %s"  , o, l, r)
+            logger.debug("SECT_2\t offs:%d len:%d = %s", o, l, r)
 
         o, l, r = sect.decode_sect3(self._blob, o)
         self._meta.update(r)
         self._subsets = r['subsets']
         self._compressed = r['comp']
         self._desc = r['descr']
-        logger.debug("SECT_3\t offs:%d len:%d = %s" , o, l, r)
+        logger.debug("SECT_3\t offs:%d len:%d = %s", o, l, r)
 
         o, l, r = sect.decode_sect4(self._blob, o)
         self._meta.update(r)
-        logger.debug("SECT_4\t offs:%d len:%d = %s"  , o, l, r)
+        logger.debug("SECT_4\t offs:%d len:%d = %s", o, l, r)
         self._data_s = r['data_start']
         self._data_e = r['data_end']
 
         o, l, r = sect.decode_sect5(self._blob, o)
         self._meta.update(r)
-        logger.debug("SECT_5\t offs:%d len:%d = %s"  , o, l, r)
+        logger.debug("SECT_5\t offs:%d len:%d = %s", o, l, r)
 
         if o == -1:
             logger.error("End '7777' not found")
             raise BufrDecodeError("End '7777' not found")
 
         if self._meta['size'] != o:
-            logger.error("size/offset error: size %d <> offset %d" , self._meta['size'], o)
+            logger.error("size/offset error: size %d <> offset %d", self._meta['size'], o)
             raise BufrDecodeError("Size/offset error")
 
         if tables_fail is not None:
             raise tables_fail
 
         return self._meta
-

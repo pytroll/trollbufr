@@ -30,6 +30,7 @@ import logging
 logger = logging.getLogger("trollbufr")
 from errors import BufrDecodeError
 
+
 class Blob(object):
     _data = None
     _point = -1
@@ -88,7 +89,7 @@ class Blob(object):
 
     def skip_bits(self, width):
         """Skip width bits.
-        
+
         Move internal pointer when some bits don't need processing.
         :return: Void.
         """
@@ -99,7 +100,7 @@ class Blob(object):
 
     def get_bits(self, width):
         """Read width bits from internal buffer.
-        
+
         :return: character buffer, which needs further decoding.
         """
         n = 0
@@ -126,4 +127,3 @@ class Blob(object):
                 self._point += 1
         # Reaching this line shouldn't happen
         raise BufrDecodeError()
-

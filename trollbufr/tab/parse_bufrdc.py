@@ -81,13 +81,14 @@ fxy    n    code xx name
 
 _default_table_dir = "%s/.local/share/trollbufr" % (os.getenv('HOME'))
 _table_file_names = {
-            "A": "A" + "0"*19 + ".TXT",
-            "B": "B%03d%07d%03d%03d%03d.TXT",
-            "C": "operator.table",
-            "D": "D%03d%07d%03d%03d%03d.TXT",
-            "CF": "C%03d%07d%03d%03d%03d.TXT",
-        }
+    "A": "A" + "0" * 19 + ".TXT",
+    "B": "B%03d%07d%03d%03d%03d.TXT",
+    "C": "operator.table",
+    "D": "D%03d%07d%03d%03d%03d.TXT",
+    "CF": "C%03d%07d%03d%03d%03d.TXT",
+}
 _text_file_not_found = "Table not found: '%s'"
+
 
 def load_tab_a(tables, fname):
     """Load table A (data category) from 'fname' into object Tables."""
@@ -108,6 +109,7 @@ def load_tab_a(tables, fname):
 #             tables.tab_a[int(d)] = e
 #     return True
     return False
+
 
 def load_tab_b(tables, fname):
     """Load table B (elements) from 'fname' into object Tables."""
@@ -139,6 +141,7 @@ def load_tab_b(tables, fname):
                 logger.warning(exc)
     return True
 
+
 def load_tab_c(tables, fname):
     """Load table C (operators) from 'fname' into object Tables."""
 #     if not os.path.exists(fname):
@@ -160,6 +163,7 @@ def load_tab_c(tables, fname):
 #                 tables.tab_c[int(d)] = e
 #     return True
     return False
+
 
 def load_tab_d(tables, fname):
     """Load table D (sequences) from 'fname' into object Tables."""
@@ -183,6 +187,7 @@ def load_tab_d(tables, fname):
                 logger.error(exc)
                 raise BufrTableError(exc)
     return True
+
 
 def load_tab_cf(tables, fname):
     """
@@ -213,9 +218,9 @@ def load_tab_cf(tables, fname):
                 raise BufrTableError(exc)
     return True
 
+
 def get_file(tabnum, base_path, master, center, subcenter, master_vers, local_vers):
     mp = lp = base_path
     m = os.path.join(mp, _table_file_names[tabnum] % (0, 0, 0, master_vers, 0))
     l = os.path.join(lp, _table_file_names[tabnum] % (0, 0, center, master_vers, local_vers))
     return (m, l)
-

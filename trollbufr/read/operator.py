@@ -32,6 +32,7 @@ import logging
 
 logger = logging.getLogger("trollbufr")
 
+
 def eval_oper(subset, dl, di, de):
     """Evaluate operator, read octets from data section if necessary.
 
@@ -39,28 +40,28 @@ def eval_oper(subset, dl, di, de):
     """
     # Dictionary referencing operator functions from descriptors xx part.
     res = {
-        1:fun01, # Change data width
-        2:fun02, # Change scale
-        3:fun03, # Set of new reference values
-        4:fun04, # Add associated field, shall be followed by 031021
-        5:fun05, # Signify with characters, plain language text as returned value
-        6:fun06, # Length of local descriptor
-        7:fun07, # Change scale, reference, width
-        8:fun08, # Change data width for characters
-        9:fun09, # IEEE floating point representation
-        21:fun21, # Data not present
-        22:fun22, # Quality Assessment Information
-        23:funX, # Substituted values /
-        24:funX, # First-order statistical values /
-        25:funX, # Difference statistical values /
-        32:funX, # Replaced/retained vaules /
-        35:funX, # Cancel backward data reference /
-        36:funX, # Define data present bit-map /
-        37:funX, # Use data present bit-map / Cancel data present bit-map
-        41:funX, # Define event / Cancel event
-        42:funX, # Define conditioning event / Cancel conditioning event
-        43:funX, # Categorial forecast values follow / Cancel categorial forecast
-        }
+        1: fun01,  # Change data width
+        2: fun02,  # Change scale
+        3: fun03,  # Set of new reference values
+        4: fun04,  # Add associated field, shall be followed by 031021
+        5: fun05,  # Signify with characters, plain language text as returned value
+        6: fun06,  # Length of local descriptor
+        7: fun07,  # Change scale, reference, width
+        8: fun08,  # Change data width for characters
+        9: fun09,  # IEEE floating point representation
+        21: fun21,  # Data not present
+        22: fun22,  # Quality Assessment Information
+        23: funX,  # Substituted values /
+        24: funX,  # First-order statistical values /
+        25: funX,  # Difference statistical values /
+        32: funX,  # Replaced/retained vaules /
+        35: funX,  # Cancel backward data reference /
+        36: funX,  # Define data present bit-map /
+        37: funX,  # Use data present bit-map / Cancel data present bit-map
+        41: funX,  # Define event / Cancel event
+        42: funX,  # Define conditioning event / Cancel conditioning event
+        43: funX,  # Categorial forecast values follow / Cancel categorial forecast
+    }
     # Delegating to operator function from dict.
     logger.debug("OP %d", dl[di])
     am = dl[di] // 1000 - 200
@@ -68,6 +69,7 @@ def eval_oper(subset, dl, di, de):
         raise BufrDecodeError("Operator %06d not implemented." % dl[di])
     l_di, l_rval = res[am](subset, dl, di, de)
     return l_di, l_rval
+
 
 '''
 Template for future operator functions.
@@ -86,17 +88,20 @@ def funXY(subset, dl, di, de):
     return di,None
 '''
 
+
 def fun01(subset, dl, di, de):
     """Change data width"""
     an = dl[di] % 1000
     subset._alter['wnum'] = an - 128 if an else 0
     return di, None
 
+
 def fun02(subset, dl, di, de):
     """Change scale"""
     an = dl[di] % 1000
     subset._alter['scale'] = an - 128 if an else 0
     return di, None
+
 
 def fun03(subset, dl, di, de):
     """Set of new reference values"""
@@ -107,6 +112,7 @@ def fun03(subset, dl, di, de):
         l_di = subset._read_refval(dl, di, de)
         logger.debug("OP refval -> %s" % subset._alter['refval'])
     return l_di, None
+
 
 def fun04(subset, dl, di, de):
     """Add associated field, shall be followed by 031021"""
@@ -120,6 +126,7 @@ def fun04(subset, dl, di, de):
         subset._alter['assoc'].append(subset._alter['assoc'][-1] + an)
     return di, None
 
+
 def fun05(subset, dl, di, de):
     """Signify with characters, plain language text as returned value"""
     an = dl[di] % 1000
@@ -130,12 +137,14 @@ def fun05(subset, dl, di, de):
     l_rval = (dl[di], None, (v, None))
     return di, l_rval
 
+
 def fun06(subset, dl, di, de):
     """Length of local descriptor"""
     an = dl[di] % 1000
     fun.get_rval(subset._blob, subset.is_compressed, subset.subs_num, fix_width=an)
     l_di = di + 1
     return l_di, None
+
 
 def fun07(subset, dl, di, de):
     """Change scale, reference, width"""
@@ -150,11 +159,13 @@ def fun07(subset, dl, di, de):
         subset._alter['wnum'] = ((10 * an) + 2) / 3
     return di, None
 
+
 def fun08(subset, dl, di, de):
     """Change data width for characters"""
     an = dl[di] % 1000
     subset._alter['wchr'] = an * 8 if an else 0
     return di, None
+
 
 def fun09(subset, dl, di, de):
     """IEEE floating point representation"""
@@ -162,11 +173,13 @@ def fun09(subset, dl, di, de):
     subset._alter['ieee'] = an
     return di, None
 
+
 def fun21(subset, dl, di, de):
     """Data not present"""
     an = dl[di] % 1000
     subset._skip_data = an
     return di, None
+
 
 def fun22(subset, dl, di, de):
     """Quality Assessment Information"""
@@ -177,6 +190,7 @@ def fun22(subset, dl, di, de):
     l_rval = (dl[di], None, (en[0], None))
     return di, l_rval
 
+
 def funX(subset, dl, di, de):
     """Not implemented.
 
@@ -184,4 +198,3 @@ def funX(subset, dl, di, de):
     standard) but are yet not implemented.
     """
     raise NotImplementedError("Operator %06d not implemented." % dl[di])
-

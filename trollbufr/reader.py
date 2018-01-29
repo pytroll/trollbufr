@@ -37,6 +37,7 @@ import tab.load_tables
 import logging
 logger = logging.getLogger("trollbufr")
 
+
 def read_bufr_data(args):
     bufr_files = args.bufr
     bufr = Bufr(args.tables_type, args.tables_path)
@@ -93,6 +94,7 @@ def read_bufr_data(args):
                 if logger.isEnabledFor(logging.DEBUG):
                     logger.exception(e)
 
+
 def read_bufr_desc(args):
     bufr_files = args.bufr
     for fn in bufr_files:
@@ -119,6 +121,7 @@ def read_bufr_desc(args):
                 if logger.isEnabledFor(logging.DEBUG):
                     logger.exception(e)
 
+
 def run(argv=None):
     '''Command line options.'''
     if argv is None:
@@ -132,49 +135,49 @@ def run(argv=None):
                                 formatter_class=RawDescriptionHelpFormatter
                                 )
         parser.add_argument("-v", "--verbose", dest="verbose",
-                                action="count",
-                                help="set verbosity level [default: 0]"
-                                )
+                            action="count",
+                            help="set verbosity level [default: 0]"
+                            )
         parser.add_argument("-s", "--sparse", dest="sparse",
-                                action="store_true",
-                                help="sparse output, no tables loaded"
-                                )
+                            action="store_true",
+                            help="sparse output, no tables loaded"
+                            )
         group_op = parser.add_argument_group(title="operator",
-                                description="what to do (at least one required)"
-                                )
+                                             description="what to do (at least one required)"
+                                             )
         group_op.add_argument("-r", "--read", dest="reader",
-                                action="store_true",
-                                help="print data"
-                                )
+                              action="store_true",
+                              help="print data"
+                              )
         group_op.add_argument("-d", "--desc", dest="desc",
-                                action="store_true",
-                                help="print info/descriptor"
-                                )
+                              action="store_true",
+                              help="print info/descriptor"
+                              )
         group_op.add_argument("-b", "--bulletin", dest="bulletin",
-                                default=None,
-                                type=int,
-                                metavar="N",
-                                help="decode only bulletin #N in file (starts with '0')"
-                                )
+                              default=None,
+                              type=int,
+                              metavar="N",
+                              help="decode only bulletin #N in file (starts with '0')"
+                              )
         group_tab = parser.add_argument_group(title="table setting")
         group_tab.add_argument("-t", "--tables_path",
-                                default=os.getenv("BUFR_TABLES"),
-                                help="path to tables, if not set in $BUFR_TABLES",
-                                metavar="path"
-                                )
+                               default=os.getenv("BUFR_TABLES"),
+                               help="path to tables, if not set in $BUFR_TABLES",
+                               metavar="path"
+                               )
         group_tab.add_argument("-T", "--tables_type",
-                                default=tab.load_tables.list_parser()[0],
-                                choices=tab.load_tables.list_parser(),
-                                help="type of table format [%s], default: %s" % (
-                                        "|".join(tab.load_tables.list_parser()),
-                                        tab.load_tables.list_parser()[0]
-                                        ),
-                                metavar="name"
-                                )
+                               default=tab.load_tables.list_parser()[0],
+                               choices=tab.load_tables.list_parser(),
+                               help="type of table format [%s], default: %s" % (
+                                    "|".join(tab.load_tables.list_parser()),
+                                   tab.load_tables.list_parser()[0]
+                               ),
+                               metavar="name"
+                               )
         parser.add_argument('-V', '--version',
-                                action='version',
-                                version="pybufr %s" % program_version
-                                )
+                            action='version',
+                            version="pybufr %s" % program_version
+                            )
         parser.add_argument(dest="bufr",
                             help="file(s) with BUFR content",
                             metavar="file",
@@ -218,6 +221,7 @@ def run(argv=None):
             logger.exception(e)
         return 1
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(run())
