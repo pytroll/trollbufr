@@ -124,7 +124,7 @@ class Subset(object):
                     """Data not present: data is limited to class 01-09,31"""
                     logger.debug("skip %d", self._skip_data)
                     self._skip_data -= 1
-                    if dl[di] >= 10000 and dl[di] % 1000 != 31:
+                    if 1000 <= dl[di] < 10000 and dl[di] // 1000 != 31:
                         di += 1
                         continue
 
