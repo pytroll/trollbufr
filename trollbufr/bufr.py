@@ -150,41 +150,33 @@ class Bufr(object):
     def get_descr_full(self):
         """List descriptors, with unit and name/description"""
         desc_text = []
-        stack = [(self._desc, 0)]
-        while stack:
-            dl, di = stack.pop()
-            while di < len(dl):
-                if descr_is_nil(dl[di]):
-                    di += 1
-                elif descr_is_data(dl[di]):
-                    desc_text.append(str(self._tables.tab_b[dl[di]]))
-                    di += 1
-                elif descr_is_loop(dl[di]):
-                    lm = dl[di] // 1000 - 100
-                    ln = dl[di] % 1000
-                    desc_text.append("%06d : LOOP, %d desc., %d times"
-                                     % (dl[di], lm, ln))
-                    di += 1
-                elif descr_is_oper(dl[di]):
-                    if dl[di] in self._tables.tab_c:
-                        en = self._tables.tab_c.get(dl[di])
-                    else:
-                        en = self._tables.tab_c.get(dl[di] // 1000)
-                    am = dl[di] // 1000 - 200
-                    an = dl[di] % 1000
-                    if en is None:
-                        en = (str(am), "")
-                    if dl[di] < 222000:
-                        desc_text.append("%06d : OPERATOR %s: %d" % (dl[di], en[0], an))
-                    else:
-                        desc_text.append("%06d : OPERATOR '%s'" % (dl[di], en[0]))
-                    di += 1
-                elif descr_is_seq(dl[di]):
-                    stack.append((dl, di + 1))
-                    da = dl[di]
-                    dl = self._tables.tab_d[dl[di]]
-                    di = 0
-                    desc_text.append("%06d : SEQUENCE, %d desc." % (da, len(dl)))
+        dl, di = (self._desc_exp, 0)
+        while di < len(dl):
+            if descr_is_nil(dl[di]):
+                pass
+            elif descr_is_data(dl[di]):
+                desc_text.append(str(self._tables.tab_b[dl[di]]))
+            elif descr_is_loop(dl[di]):
+                lm = dl[di] // 1000 - 100
+                ln = dl[di] % 1000
+                desc_text.append("%06d : LOOP, %d desc., %d times"
+                                 % (dl[di], lm, ln))
+            elif descr_is_oper(dl[di]):
+                if dl[di] in self._tables.tab_c:
+                    en = self._tables.tab_c.get(dl[di])
+                else:
+                    en = self._tables.tab_c.get(dl[di] // 1000)
+                am = dl[di] // 1000 - 200
+                an = dl[di] % 1000
+                if en is None:
+                    en = (str(am), "")
+                if dl[di] < 222000:
+                    desc_text.append("%06d : OPERATOR %s: %d" % (dl[di], en[0], an))
+                else:
+                    desc_text.append("%06d : OPERATOR %s" % (dl[di], en[0]))
+            elif descr_is_seq(dl[di]):
+                desc_text.append("%06d : SEQUENCE, %d desc." % (dl[di], len(dl)))
+            di += 1
         return desc_text
 
     def get_descr_short(self):
@@ -193,7 +185,7 @@ class Bufr(object):
         dl, di = (self._desc, 0)
         while di < len(dl):
             if descr_is_nil(dl[di]):
-                di += 1
+                pass
             elif descr_is_data(dl[di]):
                 desc_text.append("%06d" % dl[di])
             elif descr_is_loop(dl[di]):
