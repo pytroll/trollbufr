@@ -60,7 +60,10 @@ def read_bufr_data(args):
                     if args.sparse:
                         for descr_entry in report.next_data():
                             if descr_entry.mark is not None:
-                                print "   ", descr_entry.mark
+                                print "  ", descr_entry.mark,
+                                if descr_entry.value:
+                                    print "".join(str(x) for x in descr_entry.value),
+                                print
                                 continue
                             if descr_entry.value is None:
                                 print "%06d: ///" % (descr_entry.descr)
@@ -74,7 +77,10 @@ def read_bufr_data(args):
                     else:
                         for descr_entry in report.next_data():
                             if descr_entry.mark is not None:
-                                print "  ", descr_entry.mark
+                                print "  ", descr_entry.mark,
+                                if descr_entry.value:
+                                    print "".join(str(x) for x in descr_entry.value),
+                                print
                                 continue
                             d_name, d_unit = tabl.lookup_elem(descr_entry.descr)
                             if "table" in d_unit:

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2016,2017 Alexander Maul
+# Copyright (c) 2016-2018 Alexander Maul
 #
 # Author(s):
 #
@@ -52,12 +52,12 @@ def eval_oper(subset, dl, di, de):
         21: fun21,  # Data not present
         22: fun22,  # Quality Assessment Information
         23: funX,  # Substituted values /
-        24: funX,  # First-order statistical values /
+        24: fun24,  # First-order statistical values /
         25: funX,  # Difference statistical values /
         32: funX,  # Replaced/retained vaules /
-        35: funX,  # Cancel backward data reference /
-        36: funX,  # Define data present bit-map /
-        37: funX,  # Use data present bit-map / Cancel data present bit-map
+        35: fun35,  # Cancel backward data reference /
+        36: fun36,  # Define data present bit-map /
+        37: fun37,  # Use data present bit-map / Cancel data present bit-map
         41: funX,  # Define event / Cancel event
         42: funX,  # Define conditioning event / Cancel conditioning event
         43: funX,  # Categorial forecast values follow / Cancel categorial forecast
@@ -89,14 +89,14 @@ def funXY(subset, dl, di, de):
 '''
 
 
-def fun01(subset, dl, di, de):
+def fun01(subset, dl, di, _):
     """Change data width"""
     an = dl[di] % 1000
     subset._alter['wnum'] = an - 128 if an else 0
     return di, None
 
 
-def fun02(subset, dl, di, de):
+def fun02(subset, dl, di, _):
     """Change scale"""
     an = dl[di] % 1000
     subset._alter['scale'] = an - 128 if an else 0
@@ -114,7 +114,7 @@ def fun03(subset, dl, di, de):
     return l_di, None
 
 
-def fun04(subset, dl, di, de):
+def fun04(subset, dl, di, _):
     """Add associated field, shall be followed by 031021"""
     an = dl[di] % 1000
     # Manages stack for associated field, the value added last shall be used.
@@ -127,18 +127,18 @@ def fun04(subset, dl, di, de):
     return di, None
 
 
-def fun05(subset, dl, di, de):
+def fun05(subset, dl, di, _):
     """Signify with characters, plain language text as returned value"""
     an = dl[di] % 1000
     foo = fun.get_rval(subset._blob, subset.is_compressed, subset.subs_num, fix_width=an * 8)
     v = fun.rval2str(foo)
     logger.debug("OP text -> '%s'", v)
     # Special rval for plain character
-    l_rval = (dl[di], None, (v, None))
+    l_rval = fun.DescrDataEntry(dl[di], None, v, None)
     return di, l_rval
 
 
-def fun06(subset, dl, di, de):
+def fun06(subset, dl, di, _):
     """Length of local descriptor"""
     an = dl[di] % 1000
     fun.get_rval(subset._blob, subset.is_compressed, subset.subs_num, fix_width=an)
@@ -146,7 +146,7 @@ def fun06(subset, dl, di, de):
     return l_di, None
 
 
-def fun07(subset, dl, di, de):
+def fun07(subset, dl, di, _):
     """Change scale, reference, width"""
     an = dl[di] % 1000
     if an == 0:
@@ -160,34 +160,87 @@ def fun07(subset, dl, di, de):
     return di, None
 
 
-def fun08(subset, dl, di, de):
+def fun08(subset, dl, di, _):
     """Change data width for characters"""
     an = dl[di] % 1000
     subset._alter['wchr'] = an * 8 if an else 0
     return di, None
 
 
-def fun09(subset, dl, di, de):
+def fun09(subset, dl, di, _):
     """IEEE floating point representation"""
     an = dl[di] % 1000
     subset._alter['ieee'] = an
     return di, None
 
 
-def fun21(subset, dl, di, de):
+def fun21(subset, dl, di, _):
     """Data not present"""
     an = dl[di] % 1000
     subset._skip_data = an
     return di, None
 
 
-def fun22(subset, dl, di, de):
+def fun22(subset, dl, di, _):
     """Quality Assessment Information"""
-    # an = dl[di] % 1000
     logger.debug("OP %d", dl[di])
     en = subset._tables.tab_c.get(dl[di], ("Operator",))
     # An additional rval for operators where no further action is required
-    l_rval = (dl[di], None, (en[0], None))
+    l_rval = fun.DescrDataEntry(dl[di], None, en[0], None)
+    return di, l_rval
+
+
+def fun24(subset, dl, di, _):
+    """First-order statistical values follow."""
+    logger.debug("OP %d", dl[di])
+    if dl[di] == 224000:
+        en = subset._tables.tab_c.get(dl[di], ("Operator",))
+        # An additional rval for operators where no further action is required
+        l_rval = fun.DescrDataEntry(dl[di], None, en[0], None)
+
+        subset._backref_stack = [subset._backref_record[i]
+                                 for i in range(len(subset._bitmap) - 1, 0, -1)
+                                 if subset._bitmap[i] == 0]
+    elif dl[di] == 224255:
+        bar = subset._backref_stack.pop()
+        foo = fun.get_rval(subset._blob, subset.is_compressed, subset.subs_num, tab_b_elem=bar[0], alter=bar[1])
+        v = fun.rval2num(bar[0], bar[1], foo)
+        l_rval = fun.DescrDataEntry(dl[di], None, v, bar[0])
+    else:
+        raise BufrDecodeError("Unknown operator '%d'!", dl[di])
+    return di, l_rval
+
+
+def fun35(subset, dl, di, _):
+    """Cancel backward data reference."""
+    if dl[di] == 235000:
+        subset._backref_record = []
+        subset._do_backref_record = True
+    return di, None
+
+
+def fun36(subset, dl, di, _):
+    """Define data present bit-map."""
+    # Evaluate following replication descr.
+    di += 1
+    am = dl[di] // 1000 - 100
+    an = dl[di] % 1000
+    # Move to data present indicating descr.
+    di += 1
+    if am != 1 or dl[di] != 31031:
+        raise BufrDecodeError("Fault in replication defining bitmap!")
+    subset._bitmap = [fun.get_rval(subset._blob, subset.is_compressed, subset.subs_num, fix_width=1) for _ in range(an)]
+    subset._do_backref_record = False
+    l_rval = fun.DescrDataEntry(dl[di], "BMP", subset._bitmap, None)
+    return di, l_rval
+
+
+def fun37(subset, dl, di, _):
+    """Use (237000) or cancel use (237255) defined data present bit-map."""
+    if dl[di] == 237000:
+        l_rval = fun.DescrDataEntry(dl[di], "BMP", subset._bitmap, None)
+    elif dl[di] == 237255:
+        subset._bitmap = []
     return di, l_rval
 
 

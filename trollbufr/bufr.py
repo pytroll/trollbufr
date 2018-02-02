@@ -212,6 +212,11 @@ class Bufr(object):
         i = 0
         subset = None
         self._blob.reset(self._data_s)
+        # Determine if descriptors need recording for back-reference operator
+        self._desc_exp = get_descr_list(self._tables, self._desc)
+        self._has_backref_oper = any(True
+                                     for d in self._desc_exp
+                                     if 222000 <= d < 240000)
         logger.info("BUFR START")
         while i < self._subsets:
             logger.info("SUBSET #%d", i)
@@ -316,12 +321,5 @@ class Bufr(object):
 
         if tables_fail is not None:
             raise tables_fail
-
-        # Determine if descriptors need recording for back-reference operator
-        if tables:
-            self._desc_exp = get_descr_list(self._tables, self._desc)
-        else:
-            self._desc_exp = [0]
-        self._has_backref_oper = any(True for d in self._desc_exp if 222000 <= d < 240000)
 
         return self._meta

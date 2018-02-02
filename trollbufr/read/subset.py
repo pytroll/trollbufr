@@ -44,28 +44,26 @@ class Subset(object):
     # Currently decoding a subset
     inprogress = False
 
-    # Holds table object
-    _tables = None
-    # Holds byte array with bufr
-    _blob = None
-    # Initial descriptor list
-    _desc = []
-    # End of data for all subsets
-    _data_e = -1
-    # Alterator values
-    _alter = {}
-    #
-    _skip_data = 0
-    # Recorder for back-referenced descriptors
-    _backref_record = []
-
     def __init__(self, tables, bufr, descr_list, is_compressed, has_backref, subset_num, data_end):
-        self._tables = tables
-        self._blob = bufr
-        self._desc = descr_list
         self.is_compressed = is_compressed
-        self._has_backref = has_backref
         self.subs_num = subset_num
+        # Holds table object
+        self._tables = tables
+        # Holds byte array with bufr
+        self._blob = bufr
+        # Initial descriptor list
+        self._desc = descr_list
+        # End of data for all subsets
+        self._data_e = -1
+        # Alterator values
+        self._alter = {}
+        # Skip N data descriptors
+        self._skip_data = 0
+        # Recording descriptors for back-referencing
+        self._do_backref_record = has_backref
+        # Recorder for back-referenced descriptors
+        self._backref_record = []
+        # Last octet in BUFR
         self._data_e = data_end
 
     def __str__(self):
@@ -76,9 +74,14 @@ class Subset(object):
 
         This generator will decode BUFR data.
 
-        For each data element the descriptor and a tuple of value and quality information is returned.
+        For each data element a named tuple is returned. 
+        The items are the descriptor, a type marker, a numerical value, and quality information.
+        Items unset or unapplicaple are set to None.
 
-        When a value for mark is returned, the others are None, and mark has the meaning:
+        mark consists of three uppercase letters, a space character, and a 
+        descriptor or iteration number or "END".
+        When a value for mark is returned, the others items are usually None, 
+        mark has the meaning:
         - SEQ desc : Following descriptors by expansion of sequence descriptor desc.
         - SEQ END  : End of sequence expansion.
         - RPL #n   : Descriptor replication number #n begins.
@@ -87,6 +90,9 @@ class Subset(object):
         - REP #n   : Descriptor and data repetition, all descriptor and data between
                      this and REP END are to be repeated #n times.
         - REP END  : End of desriptor and data repetition.
+        - BMP      : Use the data present bit-map to refer to the data descriptors 
+                     which immediately precede the operator to which it relates.
+                     The bitmap is returned in the named tuple item 'value'.
 
         :yield: collections.namedtuple(desc, mark, value, quality)
         """
@@ -141,7 +147,7 @@ class Subset(object):
                     di += 1
                     foo = fun.get_rval(self._blob, self.is_compressed, self.subs_num, elem_b, self._alter)
                     v = fun.rval2num(elem_b, self._alter, foo)
-                    if self._has_backref:
+                    if self._do_backref_record:
                         self._backref_record.append((elem_b, self._alter))
                     # This is the main yield
                     yield fun.DescrDataEntry(elem_b.descr, mark, v, qual)
@@ -193,7 +199,7 @@ class Subset(object):
                     """Operator descritor, alter/modify properties"""
                     di, v = op.eval_oper(self, dl, di, de)
                     if v is not None:
-                        # If the operator "signify" returned a value, yield it
+                        # If the operator returned a value, yield it
                         yield v
                     di += 1
 
