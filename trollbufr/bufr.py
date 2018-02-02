@@ -19,16 +19,17 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 trollbufr.bufr.Bufr
 ===================
 *The* class holding, decoding, and reading a BUFR.
 
 After decoding the meta-information use the iterator over the subsets.
 
-Each subset is held in an instance of class :class:`~trollbufr.read.Subset`, which has the iterator
-function `next_data()` to iterate over all data elements in this subset.
-'''
+Each subset is held in an instance of class :class:`~trollbufr.read.Subset`, 
+which has the iterator function `next_data()` to iterate over all data elements
+in this subset.
+"""
 import tab.load_tables
 import read.bufr_sect as sect
 from read.subset import Subset
@@ -86,29 +87,47 @@ class Bufr(object):
         """All meta-information from section 1+3 as multi-line string"""
         s = []
         t = "%-32s: %s"
-        s.append(t % ("Edition", self._meta.get("edition", "---")))
-        s.append(t % ("Master-table", self._meta.get("master", "---")))
-        cc = self._meta.get("center", "---")
-        cs = self._meta.get("subcenter", "---")
+        s.append(t % ("Edition",
+                      self._meta.get("edition", "---")))
+        s.append(t % ("Master-table",
+                      self._meta.get("master", "---")))
+        cc = self._meta.get("center",
+                            "---")
+        cs = self._meta.get("subcenter",
+                            "---")
         if self._tables is not None:
             cc = self._tables.lookup_codeflag(1033, cc)
             cs = self._tables.lookup_codeflag(1034, cs)
-        s.append(t % ("Centre", cc))
-        s.append(t % ("Sub-Centre", cs))
-        s.append(t % ("Update sequence number", self._meta.get("update", "---")))
-        s.append(t % ("Type of data", ("observed" if self._meta.get("obs", 0) else "other")))
-        dc = self._meta.get("cat", "---")
+        s.append(t % ("Centre",
+                      cc))
+        s.append(t % ("Sub-Centre",
+                      cs))
+        s.append(t % ("Update sequence number",
+                      self._meta.get("update", "---")))
+        s.append(t % ("Type of data",
+                      ("observed" if self._meta.get("obs", 0) else "other")))
+        dc = self._meta.get("cat",
+                            "---")
         if self._tables is not None:
             dc = self._tables.lookup_common(dc)
-        s.append(t % ("Data category", dc))
-        s.append(t % ("International data sub-category", self._meta.get("cat_int", "---")))
-        s.append(t % ("Local data sub-category", self._meta.get("cat_loc", "---")))
-        s.append(t % ("Version number of master table", self._meta.get("mver", "---")))
-        s.append(t % ("Version number of local table", self._meta.get("lver", "---")))
-        s.append(t % ("Most typical time", self._meta.get("datetime", "---")))
-        s.append(t % ("Optional section present", ("yes" if self._meta.get("sect2", False) else "no")))
-        s.append(t % ("Compression", ("yes" if self._meta.get("comp", False) else "no")))
-        s.append(t % ("Number of data subsets", self._meta.get("subsets", "---")))
+        s.append(t % ("Data category",
+                      dc))
+        s.append(t % ("International data sub-category",
+                      self._meta.get("cat_int", "---")))
+        s.append(t % ("Local data sub-category",
+                      self._meta.get("cat_loc", "---")))
+        s.append(t % ("Version number of master table",
+                      self._meta.get("mver", "---")))
+        s.append(t % ("Version number of local table",
+                      self._meta.get("lver", "---")))
+        s.append(t % ("Most typical time",
+                      self._meta.get("datetime", "---")))
+        s.append(t % ("Optional section present",
+                      ("yes" if self._meta.get("sect2", False) else "no")))
+        s.append(t % ("Compression",
+                      ("yes" if self._meta.get("comp", False) else "no")))
+        s.append(t % ("Number of data subsets",
+                      self._meta.get("subsets", "---")))
         return "\n".join(s)
 
     def load_tables(self):
@@ -116,8 +135,13 @@ class Bufr(object):
         if not len(self._meta):
             raise BufrTableError("No table loaded!")
         self._tables = tab.load_tables.load_differ(self._tables,
-                                                   self._meta['master'], self._meta['center'], self._meta['subcenter'], self._meta['mver'],
-                                                   self._meta['lver'], self._tab_p, self._tab_f
+                                                   self._meta['master'],
+                                                   self._meta['center'],
+                                                   self._meta['subcenter'],
+                                                   self._meta['mver'],
+                                                   self._meta['lver'],
+                                                   self._tab_p,
+                                                   self._tab_f
                                                    )
         if self._tables is None:
             raise BufrTableError("No table loaded!")
@@ -138,7 +162,8 @@ class Bufr(object):
                 elif descr_is_loop(dl[di]):
                     lm = dl[di] // 1000 - 100
                     ln = dl[di] % 1000
-                    desc_text.append("%06d : LOOP, %d desc., %d times" % (dl[di], lm, ln))
+                    desc_text.append("%06d : LOOP, %d desc., %d times"
+                                     % (dl[di], lm, ln))
                     di += 1
                 elif descr_is_oper(dl[di]):
                     if dl[di] in self._tables.tab_c:
@@ -219,14 +244,16 @@ class Bufr(object):
             if self._edition < 4:
                 data_p = self._blob.p + (self._blob.bc and 1)
                 data_p += data_p & 1
-                logger.debug("Padding  p:%d  bc:%d  -->  p:%d", self._blob.p, self._blob.bc, data_p)
+                logger.debug("Padding  p:%d  bc:%d  -->  p:%d",
+                             self._blob.p, self._blob.bc, data_p)
                 self._blob.reset(data_p)
         # Padding bits after last subset
         data_p = self._blob.p + (self._blob.bc and 1)
         self._blob.reset(data_p)
         # Check if sect.5 is reached
         if data_p != self._data_e or self._blob[data_p, data_p + 4] != "7777":
-            logger.warning("Data section did not end properly, %d -> '%s'", data_p, self._blob[data_p, data_p + 4])
+            logger.warning("Data section did not end properly, %d -> '%s'",
+                           data_p, self._blob[data_p, data_p + 4])
         logger.info("BUFR END")
         raise StopIteration
 
