@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2016,2017 Alexander Maul
+# Copyright (c) 2016-2018 Alexander Maul
 #
 # Author(s):
 #
@@ -109,7 +109,7 @@ class Subset(object):
             # de : stop when reaching this index
             dl, di, de, mark = stack.pop()
             logger.debug("POP *%d %d..%d (%s)", len(dl), di, de, mark)
-            yield fun.DescrEntry(None, mark, None, None)
+            yield fun.DescrDataEntry(None, mark, None, None)
             mark = None
             while di < de and self._blob.p < self._data_e:
                 """Loop over descriptors in current list"""
@@ -144,7 +144,7 @@ class Subset(object):
                     if self._has_backref:
                         self._backref_record.append((elem_b, self._alter))
                     # This is the main yield
-                    yield fun.DescrEntry(elem_b.descr, mark, v, qual)
+                    yield fun.DescrDataEntry(elem_b.descr, mark, v, qual)
 
                 elif fun.descr_is_loop(dl[di]):
                     """Replication descriptor, loop/iterator, replication or repetition"""

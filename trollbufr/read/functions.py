@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2016 Alexander Maul
+# Copyright (c) 2016-2018 Alexander Maul
 #
 # Author(s):
 #
@@ -35,7 +35,7 @@ from errors import BufrDecodeError
 logger = logging.getLogger("trollbufr")
 
 from collections import namedtuple
-DescrEntry = namedtuple("DescrEntry", "descr mark value quality")
+DescrDataEntry = namedtuple("DescrDataEntry", "descr mark value quality")
 
 def str2num(octets):
     """Convert all characters from octets (high->low) to int"""

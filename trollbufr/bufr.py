@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2016 Alexander Maul
+# Copyright (c) 2016-2018 Alexander Maul
 #
 # Author(s):
 #
