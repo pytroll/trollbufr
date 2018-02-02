@@ -56,12 +56,15 @@ class Subset(object):
     _alter = {}
     #
     _skip_data = 0
+    # Recorder for back-referenced descriptors
+    _backref_record = []
 
-    def __init__(self, tables, bufr, descr_list, is_compressed, subset_num, data_end):
+    def __init__(self, tables, bufr, descr_list, is_compressed, has_backref, subset_num, data_end):
         self._tables = tables
         self._blob = bufr
         self._desc = descr_list
         self.is_compressed = is_compressed
+        self._has_backref = has_backref
         self.subs_num = subset_num
         self._data_e = data_end
 
@@ -85,16 +88,7 @@ class Subset(object):
                      this and REP END are to be repeated #n times.
         - REP END  : End of desriptor and data repetition.
 
-        :yield: desc, mark, (value, quality)
-        """
-        """
-        FIXME: yield namedtuple instead of tuple
-
-        >>> from collections import namedtuple
-        >>> Point = namedtuple('Point', ['x', 'y'])
-        >>> p = Point(11, y=22)   # instantiate with positional or keyword arguments
-        >>> print p[0]            # access by index
-        >>> print p.y             # access by name
+        :yield: collections.namedtuple(desc, mark, value, quality)
         """
         if self._blob.p < 0 or self._data_e < 0 or self._blob.p >= self._data_e:
             raise BufrDecodeError("Data section start/end not initialised!")
@@ -115,7 +109,7 @@ class Subset(object):
             # de : stop when reaching this index
             dl, di, de, mark = stack.pop()
             logger.debug("POP *%d %d..%d (%s)", len(dl), di, de, mark)
-            yield None, mark, (None, None)
+            yield fun.DescrEntry(None, mark, None, None)
             mark = None
             while di < de and self._blob.p < self._data_e:
                 """Loop over descriptors in current list"""
@@ -128,11 +122,11 @@ class Subset(object):
                         di += 1
                         continue
 
-                if fun.is_nil(dl[di]):
+                if fun.descr_is_nil(dl[di]):
                     """Null-descriptor to signal end-of-list"""
                     di += 1
 
-                elif fun.is_data(dl[di]):
+                elif fun.descr_is_data(dl[di]):
                     """Element descriptor, decoding bits to value"""
                     # Associated fields (for qualifier) preceede the elements value,
                     # their width is set by an operator descr.
@@ -147,10 +141,12 @@ class Subset(object):
                     di += 1
                     foo = fun.get_rval(self._blob, self.is_compressed, self.subs_num, elem_b, self._alter)
                     v = fun.rval2num(elem_b, self._alter, foo)
+                    if self._has_backref:
+                        self._backref_record.append((elem_b, self._alter))
                     # This is the main yield
-                    yield elem_b.descr, mark, (v, qual)
+                    yield fun.DescrEntry(elem_b.descr, mark, v, qual)
 
-                elif fun.is_loop(dl[di]):
+                elif fun.descr_is_loop(dl[di]):
                     """Replication descriptor, loop/iterator, replication or repetition"""
                     # Decode loop-descr:
                     # amount of descr
@@ -193,7 +189,7 @@ class Subset(object):
                     # Causes inner while to end
                     di = de
 
-                elif fun.is_oper(dl[di]):
+                elif fun.descr_is_oper(dl[di]):
                     """Operator descritor, alter/modify properties"""
                     di, v = op.eval_oper(self, dl, di, de)
                     if v is not None:
@@ -201,7 +197,7 @@ class Subset(object):
                         yield v
                     di += 1
 
-                elif fun.is_seq(dl[di]):
+                elif fun.descr_is_seq(dl[di]):
                     """Sequence descriptor, replaces current descriptor with expansion"""
                     logger.debug("SEQ %06d", dl[di])
                     # Current on stack

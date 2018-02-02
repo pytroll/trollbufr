@@ -58,37 +58,51 @@ def read_bufr_data(args):
                 for report in bufr.next_subset():
                     print "SUBSET\t#%d/%d" % report.subs_num
                     if args.sparse:
-                        for k, m, (v, q) in report.next_data():
-                            if m is not None:
-                                print "   ", m
+                        for descr_entry in report.next_data():
+                            if descr_entry.mark is not None:
+                                print "   ", descr_entry.mark
                                 continue
-                            if v is None:
-                                print "%06d: ///" % (k)
-                            elif q is not None:
-                                print "%06d: %s (%s)" % (k, str(v), q)
+                            if descr_entry.value is None:
+                                print "%06d: ///" % (descr_entry.descr)
+                            elif descr_entry.quality is not None:
+                                print "%06d: %s (%s)" % (descr_entry.descr,
+                                                         str(descr_entry.value),
+                                                         descr_entry.quality)
                             else:
-                                print "%06d: %s" % (k, str(v))
+                                print "%06d: %s" % (descr_entry.descr,
+                                                    str(descr_entry.value))
                     else:
-                        for k, m, (v, q) in report.next_data():
-                            if m is not None:
-                                print "  ", m
+                        for descr_entry in report.next_data():
+                            if descr_entry.mark is not None:
+                                print "  ", descr_entry.mark
                                 continue
-                            kn, ku = tabl.lookup_elem(k)
-                            if "table" in ku:
-                                if v is None:
-                                    print "%06d %-40s = Missing value" % (k, kn)
+                            d_name, d_unit = tabl.lookup_elem(descr_entry.descr)
+                            if "table" in d_unit:
+                                if descr_entry.value is None:
+                                    print "%06d %-40s = Missing value" % (descr_entry.descr, d_name)
                                 else:
-                                    v = tabl.lookup_codeflag(k, v)
-                                    print "%06d %-40s = %s" % (k, kn, str(v))
+                                    v = tabl.lookup_codeflag(descr_entry.descr,
+                                                             descr_entry.value)
+                                    print "%06d %-40s = %s" % (descr_entry.descr,
+                                                               d_name,
+                                                               str(v))
                             else:
-                                if ku == "CCITT IA5" or ku == "Numeric":
-                                    ku = ""
-                                if v is None:
-                                    print "%06d %-40s = /// %s" % (k, kn, ku)
-                                elif q is not None:
-                                    print "%06d %-40s = %s %s (%s)" % (k, kn, str(v), ku, q)
+                                if d_unit == "CCITT IA5" or d_unit == "Numeric":
+                                    d_unit = ""
+                                if descr_entry.value is None:
+                                    print "%06d %-40s = /// %s" % (descr_entry.descr,
+                                                                   d_name, d_unit)
+                                elif descr_entry.quality is not None:
+                                    print "%06d %-40s = %s %s (%s)" % (descr_entry.descr,
+                                                                       d_name,
+                                                                       str(descr_entry.value),
+                                                                       d_unit,
+                                                                       descr_entry.quality)
                                 else:
-                                    print "%06d %-40s = %s %s" % (k, kn, str(v), ku)
+                                    print "%06d %-40s = %s %s" % (descr_entry.descr,
+                                                                  d_name,
+                                                                  str(descr_entry.value),
+                                                                  d_unit)
             except StandardError as e:
                 print "ERROR\t%s" % e
                 if logger.isEnabledFor(logging.DEBUG):
