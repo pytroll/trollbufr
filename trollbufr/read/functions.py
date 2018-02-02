@@ -34,6 +34,8 @@ from errors import BufrDecodeError
 
 logger = logging.getLogger("trollbufr")
 
+from collections import namedtuple
+DescrEntry = namedtuple("DescrEntry", "descr mark value quality")
 
 def str2num(octets):
     """Convert all characters from octets (high->low) to int"""
@@ -242,31 +244,51 @@ def dtg(octets, ed=4):
     return datetime.datetime(yy, mo, dy, hr, mi, sc)
 
 
-def is_nil(desc):
+def descr_is_nil(desc):
     """True if descriptor is null."""
     return desc == 0
 
 
-def is_data(desc):
+def descr_is_data(desc):
     """True if descriptor is Tab-B data descriptor."""
     return desc > 0 and desc < 100000
 
 
-def is_loop(desc):
+def descr_is_loop(desc):
     """True if descriptor is replication/repetition."""
     return desc >= 100000 and desc < 200000
 
 
-def is_oper(desc):
+def descr_is_oper(desc):
     """True if descriptor is operator."""
     return desc >= 200000 and desc < 300000
 
 
-def is_seq(desc):
+def descr_is_seq(desc):
     """True if descriptor is sequence."""
     return desc >= 300000 and desc < 400000
 
 # Yet not existent.
-# def is_dseq(desc):
+# def descr_is_dseq(desc):
 #     """True if descriptor is delayed sequence (Ed.5)."""
 #     return desc>=400000 and desc<500000
+
+
+def get_descr_list(tables, desc3):
+    """List all expanded descriptors."""
+    desc_list = []
+    stack = [(desc3, 0)]
+    while stack:
+        dl, di = stack.pop()
+        while di < len(dl):
+            if descr_is_nil(dl[di]):
+                di += 1
+            elif descr_is_data(dl[di]) or descr_is_loop(dl[di]) or descr_is_oper(dl[di]):
+                desc_list.append(dl[di])
+                di += 1
+            elif descr_is_seq(dl[di]):
+                desc_list.append(dl[di])
+                stack.append((dl, di + 1))
+                dl = tables.tab_d[dl[di]]
+                di = 0
+    return desc_list

@@ -32,7 +32,8 @@ function `next_data()` to iterate over all data elements in this subset.
 import tab.load_tables
 import read.bufr_sect as sect
 from read.subset import Subset
-from read.functions import (is_data, is_loop, is_oper, is_seq, is_nil)
+from read.functions import (descr_is_data, descr_is_loop, descr_is_oper,
+                            descr_is_seq, descr_is_nil, get_descr_list)
 from read.errors import BufrDecodeError, BufrDecodeWarning
 from tab.errors import BufrTableError
 import logging
@@ -129,17 +130,17 @@ class Bufr(object):
         while stack:
             dl, di = stack.pop()
             while di < len(dl):
-                if is_nil(dl[di]):
+                if descr_is_nil(dl[di]):
                     di += 1
-                elif is_data(dl[di]):
+                elif descr_is_data(dl[di]):
                     desc_text.append(str(self._tables.tab_b[dl[di]]))
                     di += 1
-                elif is_loop(dl[di]):
+                elif descr_is_loop(dl[di]):
                     lm = dl[di] // 1000 - 100
                     ln = dl[di] % 1000
                     desc_text.append("%06d : LOOP, %d desc., %d times" % (dl[di], lm, ln))
                     di += 1
-                elif is_oper(dl[di]):
+                elif descr_is_oper(dl[di]):
                     if dl[di] in self._tables.tab_c:
                         en = self._tables.tab_c.get(dl[di])
                     else:
@@ -153,7 +154,7 @@ class Bufr(object):
                     else:
                         desc_text.append("%06d : OPERATOR '%s'" % (dl[di], en[0]))
                     di += 1
-                elif is_seq(dl[di]):
+                elif descr_is_seq(dl[di]):
                     stack.append((dl, di + 1))
                     da = dl[di]
                     dl = self._tables.tab_d[dl[di]]
@@ -164,21 +165,19 @@ class Bufr(object):
     def get_descr_short(self):
         """List descriptors, unexpanded, no unit nor name/description"""
         desc_text = []
-        stack = [(self._desc, 0)]
-        while stack:
-            dl, di = stack.pop()
-            while di < len(dl):
-                if is_nil(dl[di]):
-                    di += 1
-                elif is_data(dl[di]):
-                    desc_text.append("%06d" % dl[di])
-                elif is_loop(dl[di]):
-                    desc_text.append("%06d LOOP" % dl[di])
-                elif is_oper(dl[di]):
-                    desc_text.append("%06d OPER" % dl[di])
-                elif is_seq(dl[di]):
-                    desc_text.append("%06d SEQ" % dl[di])
+        dl, di = (self._desc, 0)
+        while di < len(dl):
+            if descr_is_nil(dl[di]):
                 di += 1
+            elif descr_is_data(dl[di]):
+                desc_text.append("%06d" % dl[di])
+            elif descr_is_loop(dl[di]):
+                desc_text.append("%06d LOOP" % dl[di])
+            elif descr_is_oper(dl[di]):
+                desc_text.append("%06d OPER" % dl[di])
+            elif descr_is_seq(dl[di]):
+                desc_text.append("%06d SEQ" % dl[di])
+            di += 1
         return desc_text
 
     def next_subset(self):
@@ -207,7 +206,13 @@ class Bufr(object):
             if self._blob.p >= self._data_e:
                 raise BufrDecodeError("Unexpected end of data section!")
             # Create new Subset object
-            subset = Subset(self._tables, self._blob, self._desc, self._compressed, (i, self._subsets), self._data_e)
+            subset = Subset(self._tables,
+                            self._blob,
+                            self._desc,
+                            self._compressed,
+                            self._has_backref_oper,
+                            (i, self._subsets),
+                            self._data_e)
             yield subset
             i += 1
             # Padding bits (and to next even byte) for data pointer if necessary
@@ -292,5 +297,12 @@ class Bufr(object):
 
         if tables_fail is not None:
             raise tables_fail
+
+        # Determine if descriptors need recording for back-reference operator
+        if tables:
+            self._desc_exp = get_descr_list(self._tables, self._desc)
+        else:
+            self._desc_exp = [0]
+        self._has_backref_oper = any(True for d in self._desc_exp if 222000 <= d < 240000)
 
         return self._meta
