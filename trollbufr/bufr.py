@@ -150,7 +150,8 @@ class Bufr(object):
     def get_descr_full(self):
         """List descriptors, with unit and name/description"""
         desc_text = []
-        dl, di = (self._desc_exp, 0)
+        dl = get_descr_list(self._tables, self._desc)
+        di = 0
         while di < len(dl):
             if descr_is_nil(dl[di]):
                 pass
@@ -171,9 +172,9 @@ class Bufr(object):
                 if en is None:
                     en = (str(am), "")
                 if dl[di] < 222000:
-                    desc_text.append("%06d : OPERATOR %s: %d" % (dl[di], en[0], an))
+                    desc_text.append("%06d : OPERATOR, %s: %d" % (dl[di], en[0], an))
                 else:
-                    desc_text.append("%06d : OPERATOR %s" % (dl[di], en[0]))
+                    desc_text.append("%06d : OPERATOR, %s" % (dl[di], en[0]))
             elif descr_is_seq(dl[di]):
                 desc_text.append("%06d : SEQUENCE, %d desc." % (dl[di], len(dl)))
             di += 1
@@ -182,7 +183,8 @@ class Bufr(object):
     def get_descr_short(self):
         """List descriptors, unexpanded, no unit nor name/description"""
         desc_text = []
-        dl, di = (self._desc, 0)
+        dl = self._desc
+        di = 0
         while di < len(dl):
             if descr_is_nil(dl[di]):
                 pass
