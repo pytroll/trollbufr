@@ -37,6 +37,7 @@ logger = logging.getLogger("trollbufr")
 from collections import namedtuple
 DescrDataEntry = namedtuple("DescrDataEntry", "descr mark value quality")
 
+
 def str2num(octets):
     """Convert all characters from octets (high->low) to int"""
     v = 0
@@ -75,7 +76,7 @@ def get_rval(data, comp, subs_num, tab_b_elem=None, alter=None, fix_width=None):
         logger.debug("OCTETS       : FXW w+a:_+_ fw:%d qual:_ bc:%d #%d->ord(%02X)",
                      fix_width, data.bc, data.p, ord(data[data.p])
                      )
-    elif tab_b_elem is not None and (tab_b_elem.descr >= 31000 and tab_b_elem.descr < 32000):
+    elif tab_b_elem is not None and (31000 <= tab_b_elem.descr < 32000):
         # replication/repetition descriptor (group 31) is never altered.
         loc_width = tab_b_elem.width
         logger.debug("OCTETS %06d: NAL w+a:_+_ fw:_ qual:_ bc:%d #%d->ord(%02X)",
@@ -112,13 +113,11 @@ def cset2octets(data, loc_width, subs_num, btyp):
     cwidth = data.get_bits(6)
     if btyp == "string":
         cwidth *= 8
-    if min_val == all_one(loc_width):
-        # All missing
-        v = all_one(loc_width)
-    elif cwidth == 0:
-        # All equal
+    if cwidth == 0 or min_val == all_one(loc_width):
+        # All equal or all missing
         v = min_val
     else:
+        # Data compressed
         logger.debug("CSET loc_width %d  subnum %s  cwidth %d", loc_width, subs_num, cwidth)
         data.skip_bits(cwidth * subs_num[0])
         n = data.get_bits(cwidth)
