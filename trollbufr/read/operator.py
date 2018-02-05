@@ -51,13 +51,13 @@ def eval_oper(subset, dl, di, de):
         9: fun09,  # IEEE floating point representation
         21: fun21,  # Data not present
         22: fun22,  # Quality Assessment Information
-        23: funX,  # Substituted values /
-        24: fun24,  # First-order statistical values /
-        25: funX,  # Difference statistical values /
-        32: funX,  # Replaced/retained vaules /
-        35: fun35,  # Cancel backward data reference /
-        36: fun36,  # Define data present bit-map /
-        37: fun37,  # Use data present bit-map / Cancel data present bit-map
+        23: funX,  # Substituted values operator / Substituted values marker
+        24: fun24,  # First-order statistical values follow / marker operator
+        25: fun25,  # Difference statistical values follow / marker operator
+        32: funX,  # Replaced/retained vaules follow / marker operator
+        35: fun35,  # Cancel backward data reference
+        36: fun36,  # Define data present bit-map
+        37: fun37,  # Use data present bit-map / Cancel use data present bit-map
         41: funX,  # Define event / Cancel event
         42: funX,  # Define conditioning event / Cancel conditioning event
         43: funX,  # Categorial forecast values follow / Cancel categorial forecast
@@ -191,17 +191,31 @@ def fun22(subset, dl, di, _):
 
 
 def fun24(subset, dl, di, _):
-    """First-order statistical values follow."""
+    """First-order statistical values."""
+    an = dl[di] % 1000
+    return fun_statistic(subset, dl, di, an)
+
+
+def fun25(subset, dl, di, _):
+    """Difference statistical values."""
+    an = dl[di] % 1000
+    return fun_statistic(subset, dl, di, an)
+
+
+def fun_statistic(subset, dl, di, an):
+    """Various operators for statistical values."""
     logger.debug("OP %d", dl[di])
-    if dl[di] == 224000:
+    if an == 0:
+        """Statistical values follow."""
         en = subset._tables.tab_c.get(dl[di], ("Operator",))
-        # An additional rval for operators where no further action is required
+        # Local return value: long name of this operator.
         l_rval = fun.DescrDataEntry(dl[di], None, en[0], None)
 
         subset._backref_stack = [subset._backref_record[i]
                                  for i in range(len(subset._bitmap) - 1, 0, -1)
                                  if subset._bitmap[i] == 0]
-    elif dl[di] == 224255:
+    elif an == 255:
+        """Statistical values marker operator."""
         bar = subset._backref_stack.pop()
         foo = fun.get_rval(subset._blob, subset.is_compressed, subset.subs_num, tab_b_elem=bar[0], alter=bar[1])
         v = fun.rval2num(bar[0], bar[1], foo)
