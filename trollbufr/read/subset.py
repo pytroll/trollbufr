@@ -160,7 +160,7 @@ class Subset(object):
                     # number of replication
                     ln = dl[di] % 1000
                     # Repetition?
-                    is_rep = False
+                    is_repetition = False
                     # Increase di to start-of-loop
                     di += 1
                     if ln == 0:
@@ -171,15 +171,15 @@ class Subset(object):
                         di += 1
                         ln = fun.get_rval(self._blob, self.is_compressed, self.subs_num, fix_width=elem_b.width)
                         # Descriptors 31011+31012 mean repetition, not replication
-                        is_rep = elem_b.descr >= 31010 and elem_b.descr <= 31012
-                        logger.debug("%s %d %d -> %d from %06d", "REPT" if is_rep else "LOOP", lm, 0, ln, elem_b.descr)
+                        is_repetition = 31010 <= elem_b.descr <= 31012
+                        logger.debug("%s %d %d -> %d from %06d", "REPT" if is_repetition else "LOOP", lm, 0, ln, elem_b.descr)
                         if ln == 255:
                             ln = 0
                     else:
                         logger.debug("LOOP %d %d" % (lm, ln))
                     # Current list on stack (di points after looped descr)
                     logger.debug("PUSH jump -> *%d %d..%d", len(dl), di + lm, de)
-                    if is_rep:
+                    if is_repetition:
                         if ln:
                             stack.append((dl, di + lm, de, "REP END"))
                             stack.append((dl, di, di + lm, "REP %d" % ln))
