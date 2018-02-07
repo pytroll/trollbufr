@@ -83,17 +83,17 @@ def get_rval(data, comp, subs_num, tab_b_elem=None, alter=None, fix_width=None):
                      tab_b_elem.descr, data.bc, data.p, ord(data[data.p])
                      )
     elif tab_b_elem is not None and alter is not None:
-        if tab_b_elem.typ == "string" and alter['wchr']:
-            loc_width = alter['wchr']
+        if tab_b_elem.typ == "string" and alter.wchr:
+            loc_width = alter.wchr
         elif tab_b_elem.typ == "double" or tab_b_elem.typ == "long":
-            if alter['ieee']:
-                loc_width = alter['ieee']
+            if alter.ieee:
+                loc_width = alter.ieee
             else:
-                loc_width = tab_b_elem.width + alter['wnum']
+                loc_width = tab_b_elem.width + alter.wnum
         else:
             loc_width = tab_b_elem.width
         logger.debug("OCTETS %06d:     w+a:%d%+d fw:_ qual:%d bc:%d #%d->ord(%02X)",
-                     tab_b_elem.descr, tab_b_elem.width, alter['wnum'], alter['assoc'][-1],
+                     tab_b_elem.descr, tab_b_elem.width, alter.wnum, alter.assoc[-1],
                      data.bc, data.p, ord(data[data.p])
                      )
     else:
@@ -163,15 +163,15 @@ def rval2num(tab_b_elem, alter, rval):
     _IEEE64_INF = 0x7fefffffffffffff
 
     # Alter = {'wnum':0, 'wchr':0, 'refval':0, 'scale':0, 'assoc':0}
-    if tab_b_elem.typ == "string" and alter['wchr']:
-        loc_width = alter['wchr']
+    if tab_b_elem.typ == "string" and alter.wchr:
+        loc_width = alter.wchr
     else:
-        loc_width = tab_b_elem.width + alter['wnum']
-    loc_refval = alter['refval'].get(tab_b_elem.descr, tab_b_elem.refval * alter['refmul'])
-    loc_scale = tab_b_elem.scale + alter['scale']
+        loc_width = tab_b_elem.width + alter.wnum
+    loc_refval = alter.refval.get(tab_b_elem.descr, tab_b_elem.refval * alter.refmul)
+    loc_scale = tab_b_elem.scale + alter.scale
 
     logger.debug("EVAL %06d: typ:%s width:%d ref:%d scal:%d%+d",
-                 tab_b_elem.descr, tab_b_elem.typ, loc_width, loc_refval, tab_b_elem.scale, alter['scale'])
+                 tab_b_elem.descr, tab_b_elem.typ, loc_width, loc_refval, tab_b_elem.scale, alter.scale)
 
     if rval == all_one(loc_width) and (tab_b_elem.descr < 31000 or tab_b_elem.descr >= 31020):
         # First, test if all bits are set, which usually means "missing value".
@@ -179,13 +179,13 @@ def rval2num(tab_b_elem, alter, rval):
         logger.debug("rval %d ==_(1<<%d)%d    #%06d/%d", rval, loc_width,
                      all_one(loc_width), tab_b_elem.descr, tab_b_elem.descr / 1000)
         val = None
-    elif alter['ieee'] and (tab_b_elem.typ == "double" or tab_b_elem.typ == "long"):
+    elif alter.ieee and (tab_b_elem.typ == "double" or tab_b_elem.typ == "long"):
         # IEEE 32b or 64b floating point number, INF means "missing value".
-        if alter['ieee'] != 32 and alter['ieee'] != 64:
-            raise BufrDecodeError("Invalid IEEE size %d" % alter['ieee'])
-        if alter['ieee'] == 32 and not rval ^ _IEEE32_INF:
+        if alter.ieee != 32 and alter.ieee != 64:
+            raise BufrDecodeError("Invalid IEEE size %d" % alter.ieee)
+        if alter.ieee == 32 and not rval ^ _IEEE32_INF:
             val = struct.unpack("f", rval)
-        elif alter['ieee'] == 64 and not rval ^ _IEEE64_INF:
+        elif alter.ieee == 64 and not rval ^ _IEEE64_INF:
             val = struct.unpack("d", rval)
         else:
             val = None

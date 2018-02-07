@@ -30,6 +30,7 @@ Created on Oct 28, 2016
 """
 import functions as fun
 import operator as op
+from copy import deepcopy
 from errors import BufrDecodeError
 import logging
 
@@ -56,7 +57,7 @@ class Subset(object):
         # End of data for all subsets
         self._data_e = -1
         # Alterator values
-        self._alter = {}
+        self._alter = AlterState()
         # Skip N data descriptors
         self._skip_data = 0
         # Recording descriptors for back-referencing
@@ -104,7 +105,7 @@ class Subset(object):
         # Items follow: ([desc,], start, end, mark)
         stack = []
         # Alterator values, this resets them at the beginning of the iterator.
-        self._alter = self._reset_alter()
+        self._alter.reset()
         # For start put list on stack
         logger.debug("PUSH start -> *%d %d..%d", len(self._desc), 0, len(self._desc))
         stack.append((self._desc, 0, len(self._desc), "SUB"))
@@ -138,9 +139,9 @@ class Subset(object):
                     # their width is set by an operator descr.
                     # They are handled in compression in same manner as other descr,
                     # with fix width from assoc-field-stack.
-                    if self._alter['assoc'][-1] and (dl[di] < 31000 or dl[di] > 32000):
+                    if self._alter.assoc[-1] and (dl[di] < 31000 or dl[di] > 32000):
                         qual = fun.get_rval(self._blob, self.is_compressed, self.subs_num,
-                                            fix_width=self._alter['assoc'][-1])
+                                            fix_width=self._alter.assoc[-1])
                     else:
                         qual = None
                     elem_b = self._tables.tab_b[dl[di]]
@@ -148,7 +149,7 @@ class Subset(object):
                     foo = fun.get_rval(self._blob, self.is_compressed, self.subs_num, elem_b, self._alter)
                     v = fun.rval2num(elem_b, self._alter, foo)
                     if self._do_backref_record:
-                        self._backref_record.append((elem_b, self._alter))
+                        self._backref_record.append((elem_b, deepcopy(self._alter)))
                     # This is the main yield
                     yield fun.DescrDataEntry(elem_b.descr, mark, v, qual)
 
@@ -172,7 +173,8 @@ class Subset(object):
                         ln = fun.get_rval(self._blob, self.is_compressed, self.subs_num, fix_width=elem_b.width)
                         # Descriptors 31011+31012 mean repetition, not replication
                         is_repetition = 31010 <= elem_b.descr <= 31012
-                        logger.debug("%s %d %d -> %d from %06d", "REPT" if is_repetition else "LOOP", lm, 0, ln, elem_b.descr)
+                        logger.debug("%s %d %d -> %d from %06d",
+                                     "REPT" if is_repetition else "LOOP", lm, 0, ln, elem_b.descr)
                         if ln == 255:
                             ln = 0
                     else:
@@ -250,16 +252,26 @@ class Subset(object):
             if dl[i] > 200000 and dl[i] % 1000 == 255:
                 # YYY==255 is signal-of-end
                 break
-        self._alter['refval'] = rl
+        self._alter.refval = rl
         return i
 
-    def _reset_alter(self):
-        return {
-            'wnum': 0,  # Add to width, for number data fields.
-            'wchr': 0,  # Change width for string data fields.
-            'refval': {},  # {desc:ref}, dict with new reference values for descriptors.
-            'refmul': 1,  # Multiplier, for all reference values of following descriptors (207yyy).
-            'scale': 0,  # Add to scale, for number data fields.
-            'assoc': [0],  # Add width for associated quality field. A stack, always use last value.
-            'ieee': 0,  # 0|32|64 All numerical values encoded as IEEE floating point number.
-        }
+
+class AlterState(object):
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.wnum = 0
+        """Add to width, for number data fields."""
+        self.wchr = 0
+        """ Change width for string data fields."""
+        self.refval = {}
+        """ {desc:ref}, dict with new reference values for descriptors."""
+        self.refmul = 1
+        """ Multiplier, for all reference values of following descriptors (207yyy)."""
+        self.scale = 0
+        """ Add to scale, for number data fields."""
+        self.assoc = [0]
+        """ Add width for associated quality field. A stack, always use last value."""
+        self.ieee = 0
+        """ 0|32|64 All numerical values encoded as IEEE floating point number."""
