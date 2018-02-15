@@ -86,7 +86,7 @@ def load_tab_a(tables, fname):
         raise BufrTableError(_text_file_not_found % fname)
     with open(fname, "rb") as fh:
         for line in fh:
-            if line.startswith('#') or len(line) < 3:
+            if line[0]=="#" or len(line) < 3:
                 continue
             d = None
             e = None
@@ -111,7 +111,7 @@ def load_tab_b(tables, fname):
             r"^(\d+)(?:\t|\s+)(\w)(?:\t|\s+)(.+?)(?:\t|\s+)([0-9-]+)(?:\t|\s+)([0-9-]+)(?:\t|\s+)([0-9-]+)(?:\t|\s+)(.+)$")
         with open(fname, "rb") as fh:
             for line in fh:
-                if line.startswith('#') or len(line) < 3:
+                if line[0]=="#" or len(line) < 3:
                     continue
                 m = re_fl.match(line)
                 if m is None:
@@ -131,7 +131,7 @@ def load_tab_c(tables, fname):
         raise BufrTableError(_text_file_not_found % fname)
     with open(fname, "rb") as fh:
         for line in fh:
-            if line.startswith('#') or len(line) < 3:
+            if line[0]=="#" or len(line) < 3:
                 continue
             d = None
             e = None
@@ -155,7 +155,7 @@ def load_tab_d(tables, fname):
         desc = None
         e = []
         for line in fh:
-            if line.startswith('#') or len(line) < 3:
+            if line[0]=="#" or len(line) < 3:
                 continue
             try:
                 le = line.split('\t')
@@ -179,7 +179,7 @@ def load_tab_cf(tables, fname):
         raise BufrTableError(_text_file_not_found % fname)
     with open(fname, "rb") as fh:
         for line in fh:
-            if line.startswith('#') or len(line) < 3:
+            if line[0]=="#" or len(line) < 3:
                 continue
             e = line.rstrip().split('\t')
             if e[4].startswith("Reserved") or e[4].startswith("Not used"):

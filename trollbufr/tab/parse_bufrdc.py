@@ -96,7 +96,7 @@ def load_tab_a(tables, fname):
 #         raise BufrTableError(_text_file_not_found % fname)
 #     with open(fname, "rb") as fh:
 #         for line in fh:
-#             if line.startswith('#') or len(line) < 3:
+#             if line[0]=="#" or len(line) < 3:
 #                 continue
 #             d = None
 #             e = None
@@ -118,7 +118,7 @@ def load_tab_b(tables, fname):
     with open(fname, "rb") as fh:
         for line in fh:
             try:
-                if line.startswith('#') or len(line) < 3:
+                if line[0]=="#" or len(line) < 3:
                     continue
                 e = None
                 el_descr = int(line[1:7])
@@ -148,7 +148,7 @@ def load_tab_c(tables, fname):
 #         raise BufrTableError(_text_file_not_found % fname)
 #     with open(fname, "rb") as fh:
 #         for line in fh:
-#             if line.startswith('#') or len(line) < 3:
+#             if line[0]=="#" or len(line) < 3:
 #                 continue
 #             d = None
 #             e = None
@@ -173,7 +173,7 @@ def load_tab_d(tables, fname):
         desc = None
         e = []
         for line in fh:
-            if line.startswith('#') or len(line) < 3:
+            if line[0]=="#" or len(line) < 3:
                 continue
             try:
                 le = (line[1:7], line[7:10], line[10:17])
@@ -199,7 +199,7 @@ def load_tab_cf(tables, fname):
     with open(fname, "rb") as fh:
         la = ["" * 5]
         for line in fh:
-            if line.startswith('#') or len(line) < 3:
+            if line[0]=="#" or len(line) < 3:
                 continue
             l = line.rstrip()
             try:

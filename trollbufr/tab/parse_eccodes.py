@@ -83,7 +83,7 @@ def load_tab_a(tables, fname):
         raise BufrTableError(_text_file_not_found % fname)
     with open(fname, "rb") as fh:
         for line in fh:
-            if line.startswith('#') or len(line) < 3:
+            if line[0]=="#" or len(line) < 3:
                 continue
             d = None
             e = None
@@ -103,7 +103,7 @@ def load_tab_b(tables, fname):
         raise BufrTableError(_text_file_not_found % fname)
     with open(fname, "rb") as fh:
         for line in fh:
-            if line.startswith('#') or len(line) < 3:
+            if line[0]=="#" or len(line) < 3:
                 continue
             e = None
             el = line.rstrip().split('|')
@@ -129,7 +129,7 @@ def load_tab_c(tables, fname):
         raise BufrTableError(_text_file_not_found % fname)
     with open(fname, "rb") as fh:
         for line in fh:
-            if line.startswith('#') or len(line) < 3:
+            if line[0]=="#" or len(line) < 3:
                 continue
             d = None
             e = None
@@ -157,7 +157,7 @@ def load_tab_d(tables, fname):
         e = []
         cline = ""
         for line in fh:
-            if line.startswith('#') or len(line) < 3:
+            if line[0]=="#" or len(line) < 3:
                 continue
             # Some eccodes' sequence.tab have newline inside a sequence-array,
             # we can assume this happens when matcher m is None.
@@ -188,7 +188,7 @@ def load_tab_cf(tables, fname):
         desc = os.path.basename(fn_etab).split('.')
         with open(fn_etab, "rb") as fh:
             for line in fh:
-                if line.startswith('#') or len(line) < 3:
+                if line[0]=="#" or len(line) < 3:
                     continue
                 try:
                     e = line.rstrip().split(' ', 2)
