@@ -73,15 +73,17 @@ def get_rval(data, comp, subs_num, tab_b_elem=None, alter=None, fix_width=None):
     """
     if fix_width is not None:
         loc_width = fix_width
-        logger.debug("OCTETS       : FXW w+a:_+_ fw:%d qual:_ bc:%d #%d->ord(%02X)",
-                     fix_width, data.bc, data.p, ord(data[data.p])
-                     )
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("OCTETS       : FXW w+a:_+_ fw:%d qual:_ bc:%d #%d->ord(%02X)",
+                         fix_width, data.bc, data.p, ord(data[data.p])
+                         )
     elif tab_b_elem is not None and (31000 <= tab_b_elem.descr < 32000):
         # replication/repetition descriptor (group 31) is never altered.
         loc_width = tab_b_elem.width
-        logger.debug("OCTETS %06d: NAL w+a:_+_ fw:_ qual:_ bc:%d #%d->ord(%02X)",
-                     tab_b_elem.descr, data.bc, data.p, ord(data[data.p])
-                     )
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("OCTETS %06d: NAL w+a:_+_ fw:_ qual:_ bc:%d #%d->ord(%02X)",
+                         tab_b_elem.descr, data.bc, data.p, ord(data[data.p])
+                         )
     elif tab_b_elem is not None and alter is not None:
         if tab_b_elem.typ == "string" and alter.wchr:
             loc_width = alter.wchr
@@ -92,10 +94,11 @@ def get_rval(data, comp, subs_num, tab_b_elem=None, alter=None, fix_width=None):
                 loc_width = tab_b_elem.width + alter.wnum
         else:
             loc_width = tab_b_elem.width
-        logger.debug("OCTETS %06d:     w+a:%d%+d fw:_ qual:%d bc:%d #%d->ord(%02X)",
-                     tab_b_elem.descr, tab_b_elem.width, alter.wnum, alter.assoc[-1],
-                     data.bc, data.p, ord(data[data.p])
-                     )
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("OCTETS %06d:     w+a:%d%+d fw:_ qual:%d bc:%d #%d->ord(%02X)",
+                         tab_b_elem.descr, tab_b_elem.width, alter.wnum, alter.assoc[-1],
+                         data.bc, data.p, ord(data[data.p])
+                         )
     else:
         raise BufrDecodeError("Can't determine width.")
     if comp:
