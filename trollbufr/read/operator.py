@@ -92,14 +92,14 @@ def funXY(subset, dl, di, de):
 def fun01(subset, dl, di, _):
     """Change data width"""
     an = dl[di] % 1000
-    subset._alter['wnum'] = an - 128 if an else 0
+    subset._alter.wnum = an - 128 if an else 0
     return di, None
 
 
 def fun02(subset, dl, di, _):
     """Change scale"""
     an = dl[di] % 1000
-    subset._alter['scale'] = an - 128 if an else 0
+    subset._alter.scale = an - 128 if an else 0
     return di, None
 
 
@@ -107,10 +107,10 @@ def fun03(subset, dl, di, de):
     """Set of new reference values"""
     an = dl[di] % 1000
     if an == 0:
-        subset._alter['refval'] = {}
+        subset._alter.refval = {}
     else:
         l_di = subset._read_refval(dl, di, de)
-        logger.debug("OP refval -> %s" % subset._alter['refval'])
+        logger.debug("OP refval -> %s" % subset._alter.refval)
     return l_di, None
 
 
@@ -119,18 +119,21 @@ def fun04(subset, dl, di, _):
     an = dl[di] % 1000
     # Manages stack for associated field, the value added last shall be used.
     if an == 0:
-        subset._alter['assoc'].pop()
-        if not len(subset._alter['assoc']):
-            subset._alter['assoc'] = [0]
+        subset._alter.assoc.pop()
+        if not len(subset._alter.assoc):
+            subset._alter.assoc = [0]
     else:
-        subset._alter['assoc'].append(subset._alter['assoc'][-1] + an)
+        subset._alter.assoc.append(subset._alter.assoc[-1] + an)
     return di, None
 
 
 def fun05(subset, dl, di, _):
     """Signify with characters, plain language text as returned value"""
     an = dl[di] % 1000
-    foo = fun.get_rval(subset._blob, subset.is_compressed, subset.subs_num, fix_width=an * 8)
+    foo = fun.get_rval(subset._blob,
+                       subset.is_compressed,
+                       subset.subs_num,
+                       fix_width=an * 8)
     v = fun.rval2str(foo)
     logger.debug("OP text -> '%s'", v)
     # Special rval for plain character
@@ -141,7 +144,10 @@ def fun05(subset, dl, di, _):
 def fun06(subset, dl, di, _):
     """Length of local descriptor"""
     an = dl[di] % 1000
-    fun.get_rval(subset._blob, subset.is_compressed, subset.subs_num, fix_width=an)
+    fun.get_rval(subset._blob,
+                 subset.is_compressed,
+                 subset.subs_num,
+                 fix_width=an)
     l_di = di + 1
     return l_di, None
 
@@ -150,27 +156,27 @@ def fun07(subset, dl, di, _):
     """Change scale, reference, width"""
     an = dl[di] % 1000
     if an == 0:
-        subset._alter['scale'] = 0
-        subset._alter['refmul'] = 1
-        subset._alter['wnum'] = 0
+        subset._alter.scale = 0
+        subset._alter.refmul = 1
+        subset._alter.wnum = 0
     else:
-        subset._alter['scale'] = an
-        subset._alter['refmul'] = 10 ^ an
-        subset._alter['wnum'] = ((10 * an) + 2) / 3
+        subset._alter.scale = an
+        subset._alter.refmul = 10 ^ an
+        subset._alter.wnum = ((10 * an) + 2) / 3
     return di, None
 
 
 def fun08(subset, dl, di, _):
     """Change data width for characters"""
     an = dl[di] % 1000
-    subset._alter['wchr'] = an * 8 if an else 0
+    subset._alter.wchr = an * 8 if an else 0
     return di, None
 
 
 def fun09(subset, dl, di, _):
     """IEEE floating point representation"""
     an = dl[di] % 1000
-    subset._alter['ieee'] = an
+    subset._alter.ieee = an
     return di, None
 
 
@@ -217,7 +223,11 @@ def fun_statistic(subset, dl, di, an):
     elif an == 255:
         """Statistical values marker operator."""
         bar = subset._backref_stack.pop()
-        foo = fun.get_rval(subset._blob, subset.is_compressed, subset.subs_num, tab_b_elem=bar[0], alter=bar[1])
+        foo = fun.get_rval(subset._blob,
+                           subset.is_compressed,
+                           subset.subs_num,
+                           tab_b_elem=bar[0],
+                           alter=bar[1])
         v = fun.rval2num(bar[0], bar[1], foo)
         l_rval = fun.DescrDataEntry(dl[di], None, v, bar[0])
     else:
@@ -243,7 +253,11 @@ def fun36(subset, dl, di, _):
     di += 1
     if am != 1 or dl[di] != 31031:
         raise BufrDecodeError("Fault in replication defining bitmap!")
-    subset._bitmap = [fun.get_rval(subset._blob, subset.is_compressed, subset.subs_num, fix_width=1) for _ in range(an)]
+    subset._bitmap = [fun.get_rval(subset._blob,
+                                   subset.is_compressed,
+                                   subset.subs_num,
+                                   fix_width=1)
+                      for _ in range(an)]
     subset._do_backref_record = False
     l_rval = fun.DescrDataEntry(dl[di], "BMP", subset._bitmap, None)
     return di, l_rval
