@@ -176,7 +176,7 @@ class Bufr(object):
                 else:
                     desc_text.append("%06d : OPERATOR, %s" % (dl[di], en[0]))
             elif descr_is_seq(dl[di]):
-                desc_text.append("%06d : SEQUENCE, %d desc." % (dl[di], len(dl)))
+                desc_text.append("%06d : SEQUENCE, %d desc." % (dl[di], len(self._tables.tab_d.get(dl[di]))))
             di += 1
         return desc_text
 
