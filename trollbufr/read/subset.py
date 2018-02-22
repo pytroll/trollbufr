@@ -162,6 +162,7 @@ class Subset(object):
                     ln = dl[di] % 1000
                     # Repetition?
                     is_repetition = False
+                    loop_cause = dl[di]
                     # Increase di to start-of-loop
                     di += 1
                     if ln == 0:
@@ -179,6 +180,7 @@ class Subset(object):
                             ln = 0
                     else:
                         logger.debug("LOOP %d %d" % (lm, ln))
+                    loop_count = ln
                     # Current list on stack (di points after looped descr)
                     logger.debug("PUSH jump -> *%d %d..%d", len(dl), di + lm, de)
                     if is_repetition:
@@ -194,6 +196,13 @@ class Subset(object):
                             logger.debug("PUSH loop -> *%d %d..%d", len(dl), di, di + lm)
                             stack.append((dl, di, di + lm, "RPL %d" % ln))
                             ln -= 1
+                    yield fun.DescrDataEntry(None,
+                                             "%s %06d *%d" % (
+                                                 "REP" if is_repetition else "RPL",
+                                                 loop_cause,
+                                                 loop_count),
+                                             None,
+                                             None)
                     # Causes inner while to end
                     di = de
 
