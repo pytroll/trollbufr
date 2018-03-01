@@ -74,8 +74,8 @@ def get_rval(data, comp, subs_num, tab_b_elem=None, alter=None, fix_width=None):
     if fix_width is not None:
         loc_width = fix_width
         if logger.isEnabledFor(logging.DEBUG):
-            logger.debug("OCTETS       : FXW w+a:_+_ fw:%d qual:_ bc:%d #%d->ord(%02X)",
-                         fix_width, data.bc, data.p, ord(data[data.p])
+            logger.debug("OCTETS       : FXW w+a:_+_ fw:%d qual:_ bc:%d #%d",  # ->ord(%02X)",
+                         fix_width, data.bc, data.p,  # ord(data[data.p])
                          )
     elif tab_b_elem is not None and (31000 <= tab_b_elem.descr < 32000):
         # replication/repetition descriptor (group 31) is never altered.
@@ -95,25 +95,25 @@ def get_rval(data, comp, subs_num, tab_b_elem=None, alter=None, fix_width=None):
         else:
             loc_width = tab_b_elem.width
         if logger.isEnabledFor(logging.DEBUG):
-            logger.debug("OCTETS %06d:     w+a:%d%+d fw:_ qual:%d bc:%d #%d->ord(%02X)",
+            logger.debug("OCTETS %06d:     w+a:%d%+d fw:_ qual:%d bc:%d  #%d",  # ->ord(%02X)",
                          tab_b_elem.descr, tab_b_elem.width, alter.wnum, alter.assoc[-1],
-                         data.bc, data.p, ord(data[data.p])
+                         data.bc, data.p,  # ord(data[data.p])
                          )
     else:
         raise BufrDecodeError("Can't determine width.")
     if comp:
         return cset2octets(data, loc_width, subs_num, tab_b_elem.typ if tab_b_elem is not None else "long")
     else:
-        return data.get_bits(loc_width)
+        return data.read_bits(loc_width)
 
 
 def cset2octets(data, loc_width, subs_num, btyp):
-    """Like Blob.get_bits(), but for compressed data.
+    """Like Blob.read_bits(), but for compressed data.
 
     :return: octets
     """
-    min_val = data.get_bits(loc_width)
-    cwidth = data.get_bits(6)
+    min_val = data.read_bits(loc_width)
+    cwidth = data.read_bits(6)
     if btyp == "string":
         cwidth *= 8
     if cwidth == 0 or min_val == all_one(loc_width):
@@ -122,12 +122,12 @@ def cset2octets(data, loc_width, subs_num, btyp):
     else:
         # Data compressed
         logger.debug("CSET loc_width %d  subnum %s  cwidth %d", loc_width, subs_num, cwidth)
-        data.skip_bits(cwidth * subs_num[0])
-        n = data.get_bits(cwidth)
+        data.read_skip(cwidth * subs_num[0])
+        n = data.read_bits(cwidth)
         if n == all_one(cwidth):
             n = all_one(loc_width)
         v = min_val + n
-        data.skip_bits(cwidth * (subs_num[1] - subs_num[0] - 1))
+        data.read_skip(cwidth * (subs_num[1] - subs_num[0] - 1))
     return v
 
 

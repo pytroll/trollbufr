@@ -26,23 +26,23 @@ Created on Nov 17, 2016
 
 @author: amaul
 '''
+from bitstring import Bits, BitStream
+import six
 import logging
 logger = logging.getLogger("trollbufr")
-from errors import BufrDecodeError
 
 
 class Blob(object):
-    _data = None
-    _point = -1
-    _bitcons = -1
 
-    def __init__(self, data):
+    _data = None
+
+    def __init__(self, data=None):
         """Initialising the class with an octet array (type string)"""
-        self._data = data
+        self._data = BitStream(bytes=data)
         self.reset()
 
     def __str__(self):
-        return "%dB %d/%d" % (len(self._data), self._point, self._bitcons)
+        return "%dB %d/%d" % (len(self._data) / 8, self._data.pos // 8, self._data.pos % 8)
 
     def __len__(self):
         return len(self._data)
@@ -53,77 +53,94 @@ class Blob(object):
         else:
             return self._data[x]
 
+    def reset(self, x=0):
+        """Reset internal pointer to position x or start"""
+        self._data.pos = x * 8
+
+    def get_bytes(self):
+        return self._data.bytes
+
     def get_point(self):
-        return self._point
+        return self._data.pos // 8
 
     def set_point(self, point):
-        self._point = point
+        self._data.pos = point * 8
 
     def get_bitcons(self):
-        return self._bitcons
+        return self._data.pos % 8
 
     def set_bitcons(self, consumed):
-        if consumed == 8:
-            consumed = 0
-            self._point += 1
-        self._bitcons = consumed
+        self._data.pos += consumed
 
     p = property(get_point, set_point)
     bc = property(get_bitcons, set_bitcons)
 
-    def reset(self, x=0):
-        """Reset internal pointer to position x or start"""
-        self._point = x
-        self._bitcons = 0
+    def read(self, fmt):
+        return self._data.read(fmt)
 
-    def slice(self, start=0, stop=-1):
-        return self._data[start:stop]
+    def readlist(self, fmt):
+        return self._data.readlist(fmt)
 
-    def get_octets(self, count=1):
-        a = self._point
-        self._point += count
-        if self._point > len(self._data):
-            self._point = len(self._data)
-        b = self._point
-        return self._data[a:b]
+    def read_align(self, even=False):
+        p = self._data.pos
+        self._data.bytealign()
+        if even and self._data.pos / 8 & 1:
+            self._data.pos += 8
+        return self._data.pos - p
 
-    def skip_bits(self, width):
+    def read_skip(self, width):
         """Skip width bits.
 
         Move internal pointer when some bits don't need processing.
         :return: Void.
         """
-        if not width:
-            return
-        self._point += (self._bitcons + width) // 8
-        self._bitcons = (self._bitcons + width) % 8
+        self._data.read("pad:%d" % width)
 
-    def get_bits(self, width):
+    def write_skip(self, width):
+        """Skip width bits.
+
+        Move internal pointer when some bits don't need processing.
+        :return: Void.
+        """
+        self._data += ('uintbe:{}={}' if width % 8 == 0 else
+                       'uint:{}={}').format(width, 0)
+
+    def read_bytes(self, width=1):
+        return self._data.read("bytes:%d" % width)
+
+    def read_bits(self, width):
         """Read width bits from internal buffer.
 
         :return: character buffer, which needs further decoding.
         """
-        n = 0
-        x = 0
-        while width:
-            p = ord(self._data[self._point])
-            if self._bitcons + width <= 8:
-                x = (p & (0xFF >> self._bitcons)) >> (8 - self._bitcons - width)
-                n |= x
-                self._bitcons += width
-                if self._bitcons == 8:
-                    self._bitcons = 0
-                    self._point += 1
-                return n
-            elif self._bitcons + width > 8:
-                x = p & (0xFF >> self._bitcons)
-                n |= x
-                width -= 8 - self._bitcons
-                if width > 8:
-                    n <<= 8
-                else:
-                    n <<= width
-                self._bitcons = 0
-                self._point += 1
-        # Reaching this line shouldn't happen
-        raise BufrDecodeError()
+        if width % 8:
+            return self._data.read("uint:%d" % width)
+        else:
+            return self._data.read("uintbe:%d" % width)
+
+    def write_bytes(self, value, width=None):
+        if isinstance(value, six.text_type):
+            value = value.encode('latin-1')
+        value_len = len(value)
+        if width is None:
+            width = value_len
+        else:
+            if value_len > width:
+                value = value[:width]
+            elif value_len < width:
+                value += b' ' * (width - value_len)
+        self._data += Bits(bytes=value)
+        return value
+
+    def write_uint(self, value, width):
+        value = int(value)
+        self._data += ('uintbe:{}={}' if width % 8 == 0 else
+                       'uint:{}={}').format(width, value)
+        return value
+
+    def set_uint(self, value, width, bitpos):
+        if width // 8 == 0:
+            bins = Bits(uint=value, length=width)
+        else:
+            bins = Bits(uintbe=value, length=24)
+        self._data[bitpos: bitpos + width] = bins

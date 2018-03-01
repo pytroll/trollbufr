@@ -31,7 +31,7 @@ which has the iterator function `next_data()` to iterate over all data elements
 in this subset.
 """
 import tab.load_tables
-import read.bufr_sect as sect
+import read.bufr_sect2 as sect
 from read.subset import Subset
 from read.functions import (descr_is_data, descr_is_loop, descr_is_oper,
                             descr_is_seq, descr_is_nil, get_descr_list)
@@ -47,7 +47,7 @@ SUPPORTED_BUFR_EDITION = (3, 4)
 
 class Bufr(object):
     """Holds and decodes a BUFR"""
-    # Holds byte array with bufr
+    # Holds byte-array-like object with bufr
     _blob = None
     # Meta data
     _meta = {}
@@ -70,12 +70,14 @@ class Bufr(object):
     # Holds table object
     _tables = None
 
-    def __init__(self, tab_fmt, tab_path, data=None):
+    def __init__(self, tab_fmt, tab_path, data=None, json_obj=None):
         self._tab_p = tab_path
         self._tab_f = tab_fmt
         if data is not None:
             self._blob = data
             self._meta = self.decode(data)
+        elif json_obj is not None:
+            self._meta = self.encode(json_obj)
 
     def get_tables(self):
         return self._tables
@@ -200,8 +202,7 @@ class Bufr(object):
         return desc_text
 
     def next_subset(self):
-        """
-        Iterator for subsets in Sect. 4
+        """Iterator for subsets in Sect. 4
 
         .. IMPORTANT::
            allways consume all values from next_data() before retrieving the next report!
@@ -241,29 +242,27 @@ class Bufr(object):
             i += 1
             # Padding bits (and to next even byte) for data pointer if necessary
             if self._edition < 4:
-                data_p = self._blob.p + (self._blob.bc and 1)
-                data_p += data_p & 1
+                p = self._blob.p
+                bc = self._blob.bc
+                self._blob.read_align(even=True)
                 logger.debug("Padding  p:%d  bc:%d  -->  p:%d",
-                             self._blob.p, self._blob.bc, data_p)
-                self._blob.reset(data_p)
+                             p, bc, self._blob.p)
         # Padding bits after last subset
-        data_p = self._blob.p + (self._blob.bc and 1)
-        self._blob.reset(data_p)
+        self._blob.read_align()
         # Check if sect.5 is reached
-        if data_p != self._data_e or self._blob[data_p, data_p + 4] != "7777":
+        if self._blob.p != self._data_e or self._blob.read_bytes(4) != "7777":
             logger.warning("Data section did not end properly, %d -> '%s'",
-                           data_p, self._blob[data_p, data_p + 4])
+                           self._blob.p, self._blob[self._blob.p, self._blob.p + 4])
         logger.info("BUFR END")
         raise StopIteration
 
-    def decode(self, data, tables=True):
-        """
-        Decodes all meta-data of the BUFR.
+    def decode(self, data, load_tables=True):
+        """Decodes all meta-data of the BUFR.
 
         This function prepares the iterators for reading data.
 
-        :param string data: data object with complete BUFR
-        :param bool tables: automatically load tables
+        :param data: Blob: data object with complete BUFR.
+        :param load_tables: bool: automatically load load_tables.
         :raise BufrDecodeWarning: recoverable error.
         :raise BufrDecodeError: error that stops decoding.
         """
@@ -285,7 +284,7 @@ class Bufr(object):
         logger.debug("SECT_1\t offs:%d len:%d = %s", o, l, r)
 
         tables_fail = None
-        if tables:
+        if load_tables:
             try:
                 self._tables = self.load_tables()
             except StandardError or Warning as exc:
@@ -325,3 +324,27 @@ class Bufr(object):
             raise tables_fail
 
         return self._meta
+
+    def encode(self, json_data, load_tables=True):
+        """Encodes the JSON object as BUFR.
+
+        This function prepares the iterators for reading data.
+
+        :param json_data: JSON object.
+        :param load_tables: automatically load tables
+        :raise BufrDecodeWarning: recoverable error.
+        :raise BufrDecodeError: error that stops decoding.
+        """
+        if load_tables and not self._tables:
+            try:
+                self._tables = self.load_tables()
+            except StandardError or Warning as exc:
+                raise exc
+
+    def get_blob(self):
+        """Return binary array object with the BUFR.
+
+        :return: BUFR
+        :rtype: read.Blob
+        """
+        return self._blob
