@@ -27,9 +27,7 @@ Created on Nov 18, 2016
 
 @author: amaul
 '''
-import logging
-logger = logging.getLogger("trollbufr")
-import functions as f
+from functions import dtg as f_dtg
 
 """
 Section 0
@@ -42,13 +40,21 @@ Section 0
 
 def decode_sect0(data, offset):
     """
-    RETURN offset, length, {size, edition}
+    :return: offset, length, {size, edition}
     """
     keys = ["bufr", "size", "edition"]
     vals = data.readlist("bytes:4, uintbe:24, uint:8")
     if vals[0] != "BUFR":
         return -1, {}
     return data.get_point(), 8, dict(zip(keys[1:], vals[1:]))
+
+
+def encode_sect0(data):
+    """
+    :return: sizefield offset [bytes]
+    """
+    data.writelist("bytes:4={}, uintbe:24=0, uint:8=4",)
+    return 4
 
 
 """
@@ -110,10 +116,22 @@ def decode_sect1(data, offset, edition=4):
     }
     vals = data.readlist(key_offs[edition][1])
     rd = dict(zip(key_offs[edition][0], vals))
-    rd["datetime"] = f.dtg(rd["datetime"], ed=edition)
+    rd["datetime"] = f_dtg(rd["datetime"], ed=edition)
     l = rd.pop("length")
     data.reset(offset + l)
     return offset + l, l, rd
+
+
+def encode_sect1(data, values):
+    """
+    :return: sizefield offset [bytes]
+    """
+    szfield = data.pos % 8
+    data.writelist("uint:24={}, uint:8={}, uint:16={}, uint:16={}, uint:8={}, "
+                   + "bool={}, pad:7, uint:8={}, uint:8={}, uint:8={}, uint:8={}, "
+                   + "uint:8={}, bytes:9={}",
+                   *values)
+    return szfield
 
 
 """

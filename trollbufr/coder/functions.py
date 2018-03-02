@@ -30,8 +30,8 @@ Created on Oct 28, 2016
 import datetime
 import logging
 import struct
-from .errors import BufrDecodeError
-from .tables import TabBelem
+from errors import BufrDecodeError
+from tables import TabBelem
 
 logger = logging.getLogger("trollbufr")
 

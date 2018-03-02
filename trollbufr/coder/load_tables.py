@@ -27,8 +27,8 @@ Created on Sep 15, 2016
 import logging
 import os
 from importlib import import_module
-from .errors import BufrTableError
-from .tables import Tables
+from errors import BufrTableError
+from tables import Tables
 
 logger = logging.getLogger("trollbufr")
 

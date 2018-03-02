@@ -28,8 +28,6 @@ Created on Nov 17, 2016
 '''
 from bitstring import Bits, BitStream
 import six
-import logging
-logger = logging.getLogger("trollbufr")
 
 
 class Blob(object):
@@ -80,6 +78,9 @@ class Blob(object):
 
     def readlist(self, fmt):
         return self._data.readlist(fmt)
+
+    def writelist(self, fmt, values):
+        self._data += Bits(fmt.format(*values))
 
     def read_align(self, even=False):
         p = self._data.pos
