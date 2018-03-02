@@ -142,10 +142,10 @@ class TabBelem(object):
         self.descr = descr
         self.typ = type_list.get(typ_str, None)
         if self.typ == TabBelem.NUMERIC:
-            if scale == 0:
-                self.typ = TabBelem.LONG
-            else:
+            if scale > 0:
                 self.typ = TabBelem.DOUBLE
+            else:
+                self.typ = TabBelem.LONG
         elif self.typ is None:
             raise BaseException("Invalid entry typ_str '%s'" % typ_str)
         self.unit = unit
