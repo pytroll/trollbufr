@@ -31,6 +31,7 @@ import datetime
 import logging
 import struct
 from errors import BufrDecodeError
+from trollbufr.tab.tables import TabBelem
 
 logger = logging.getLogger("trollbufr")
 
@@ -85,9 +86,9 @@ def get_rval(data, comp, subs_num, tab_b_elem=None, alter=None, fix_width=None):
                          tab_b_elem.descr, data.bc, data.p, ord(data[data.p])
                          )
     elif tab_b_elem is not None and alter is not None:
-        if tab_b_elem.typ == "string" and alter.wchr:
+        if tab_b_elem.typ == TabBelem.STRING and alter.wchr:
             loc_width = alter.wchr
-        elif tab_b_elem.typ == "double" or tab_b_elem.typ == "long":
+        elif tab_b_elem.typ == TabBelem.DOUBLE or tab_b_elem.typ == TabBelem.LONG:
             if alter.ieee:
                 loc_width = alter.ieee
             else:
@@ -102,7 +103,7 @@ def get_rval(data, comp, subs_num, tab_b_elem=None, alter=None, fix_width=None):
     else:
         raise BufrDecodeError("Can't determine width.")
     if comp:
-        return cset2octets(data, loc_width, subs_num, tab_b_elem.typ if tab_b_elem is not None else "long")
+        return cset2octets(data, loc_width, subs_num, tab_b_elem.typ if tab_b_elem is not None else TabBelem.LONG)
     else:
         return data.read_bits(loc_width)
 
@@ -114,7 +115,7 @@ def cset2octets(data, loc_width, subs_num, btyp):
     """
     min_val = data.read_bits(loc_width)
     cwidth = data.read_bits(6)
-    if btyp == "string":
+    if btyp == TabBelem.STRING:
         cwidth *= 8
     if cwidth == 0 or min_val == all_one(loc_width):
         # All equal or all missing
@@ -166,7 +167,7 @@ def rval2num(tab_b_elem, alter, rval):
     _IEEE64_INF = 0x7fefffffffffffff
 
     # Alter = {'wnum':0, 'wchr':0, 'refval':0, 'scale':0, 'assoc':0}
-    if tab_b_elem.typ == "string" and alter.wchr:
+    if tab_b_elem.typ == TabBelem.STRING and alter.wchr:
         loc_width = alter.wchr
     else:
         loc_width = tab_b_elem.width + alter.wnum
@@ -182,7 +183,7 @@ def rval2num(tab_b_elem, alter, rval):
         logger.debug("rval %d ==_(1<<%d)%d    #%06d/%d", rval, loc_width,
                      all_one(loc_width), tab_b_elem.descr, tab_b_elem.descr / 1000)
         val = None
-    elif alter.ieee and (tab_b_elem.typ == "double" or tab_b_elem.typ == "long"):
+    elif alter.ieee and (tab_b_elem.typ == TabBelem.DOUBLE or tab_b_elem.typ == TabBelem.LONG):
         # IEEE 32b or 64b floating point number, INF means "missing value".
         if alter.ieee != 32 and alter.ieee != 64:
             raise BufrDecodeError("Invalid IEEE size %d" % alter.ieee)
@@ -192,13 +193,13 @@ def rval2num(tab_b_elem, alter, rval):
             val = struct.unpack("d", rval)
         else:
             val = None
-    elif tab_b_elem.typ == "double" or loc_scale > 0:
+    elif tab_b_elem.typ == TabBelem.DOUBLE or loc_scale > 0:
         # Float/double: add reference, divide by scale
         val = float(rval + loc_refval) / 10 ** loc_scale
-    elif tab_b_elem.typ == "long":
+    elif tab_b_elem.typ == TabBelem.LONG:
         # Integer: add reference, divide by scale
         val = (rval + loc_refval) / 10 ** loc_scale
-    elif tab_b_elem.typ == "string":
+    elif tab_b_elem.typ == TabBelem.STRING:
         # For string, all bytes are reversed.
         val = rval2str(rval)
     else:
@@ -253,27 +254,27 @@ def descr_is_nil(desc):
 
 def descr_is_data(desc):
     """True if descriptor is Tab-B data descriptor."""
-    return desc > 0 and desc < 100000
+    return 0 < desc < 100000
 
 
 def descr_is_loop(desc):
     """True if descriptor is replication/repetition."""
-    return desc >= 100000 and desc < 200000
+    return 100000 <= desc < 200000
 
 
 def descr_is_oper(desc):
     """True if descriptor is operator."""
-    return desc >= 200000 and desc < 300000
+    return 200000 <= desc < 300000
 
 
 def descr_is_seq(desc):
     """True if descriptor is sequence."""
-    return desc >= 300000 and desc < 400000
+    return 300000 <= desc < 400000
 
 # Yet not existent.
 # def descr_is_dseq(desc):
 #     """True if descriptor is delayed sequence (Ed.5)."""
-#     return desc>=400000 and desc<500000
+#     return 400000 <= desc < 500000
 
 
 def get_descr_list(tables, desc3):

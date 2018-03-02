@@ -33,6 +33,7 @@ from argparse import ArgumentParser
 from argparse import RawDescriptionHelpFormatter
 from version import __version__
 from bufr import Bufr
+from tab.tables import TabBelem
 import load_file
 import tab.load_tables
 
@@ -87,7 +88,7 @@ def read_bufr_data(args):
                                 print()
                                 continue
                             d_name, d_unit, d_typ = tabl.lookup_elem(descr_entry.descr)
-                            if d_typ in ("code", "flag"):
+                            if d_typ in (TabBelem.CODE, TabBelem.FLAG):
                                 if descr_entry.value is None:
                                     print("%06d %-40s = Missing value"
                                           % (descr_entry.descr, d_name))
@@ -137,7 +138,7 @@ def get_bufr_json(args):
             if args.bulletin is not None and bufr_i != args.bulletin:
                 continue
             try:
-                bufr.decode(blob, load_tables=True)
+                bufr.decode(blob, True)
                 # Section 0
                 json_data.append(header)
                 json_data.append(["BUFR", bufr._meta["edition"]])
@@ -325,6 +326,13 @@ def run(argv=None):
             sys.stderr.write("Unknown operation!")
             return 1
 
+        PROFILE = True
+        if PROFILE:
+            import cProfile
+            import pstats
+            pr = cProfile.Profile()
+            pr.enable()
+
         if args.desc:
             read_bufr_desc(args)
         if args.reader:
@@ -337,6 +345,13 @@ def run(argv=None):
                     json.dump(foo, fh_out)
                 else:
                     json.dump(foo, fh_out, indent=3, separators=(',', ': '))
+
+        if PROFILE:
+            pr.disable()
+            sortby = 'cumulative'
+            ps = pstats.Stats(pr, stream=sys.stderr).sort_stats(sortby)
+            ps.print_stats()
+
     except KeyboardInterrupt:
         return 0
     except StandardError as e:
