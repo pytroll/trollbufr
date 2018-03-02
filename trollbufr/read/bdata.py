@@ -47,11 +47,11 @@ class Blob(object):
     def __len__(self):
         return len(self._data)
 
-    def __getitem__(self, x):
-        if isinstance(x, tuple):
-            return self._data[x[0]:x[1]]
-        else:
-            return self._data[x]
+#     def __getitem__(self, x):
+#         if isinstance(x, tuple):
+#             return self._data[x[0]:x[1]]
+#         else:
+#             return self._data[x]
 
     def reset(self, x=0):
         """Reset internal pointer to position x or start"""
@@ -94,7 +94,8 @@ class Blob(object):
         Move internal pointer when some bits don't need processing.
         :return: Void.
         """
-        self._data.read("pad:%d" % width)
+        # self._data.read("pad:%d" % width)
+        self._data.pos += width
 
     def write_skip(self, width):
         """Skip width bits.
@@ -102,7 +103,7 @@ class Blob(object):
         Move internal pointer when some bits don't need processing.
         :return: Void.
         """
-        self._data += ('uintbe:{}={}' if width % 8 == 0 else
+        self._data += ('uintbe:{}={}' if not width & 7 else
                        'uint:{}={}').format(width, 0)
 
     def read_bytes(self, width=1):
@@ -113,7 +114,7 @@ class Blob(object):
 
         :return: character buffer, which needs further decoding.
         """
-        if width % 8:
+        if width & 7:
             return self._data.read("uint:%d" % width)
         else:
             return self._data.read("uintbe:%d" % width)
