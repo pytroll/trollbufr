@@ -31,7 +31,7 @@ import os
 import re
 
 from errors import BufrTableError
-from tables import TabBelem
+from .tables import TabBelem
 
 logger = logging.getLogger("trollbufr")
 

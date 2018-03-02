@@ -27,12 +27,12 @@ Created on Sep 15, 2016
 import logging
 import os
 from importlib import import_module
-from errors import BufrTableError
-from tables import Tables
+from .errors import BufrTableError
+from .tables import Tables
 
 logger = logging.getLogger("trollbufr")
 
-MODULE_PATTERN = "trollbufr.tab.parse_%s"
+MODULE_PATTERN = "trollbufr.coder.parse_%s"
 
 BUFR_TABLES_DEFAULT = "%s/.local/share/trollbufr" % (os.getenv('HOME'))
 

@@ -25,9 +25,9 @@ Created on Oct 27, 2016
 @author: amaul
 '''
 import re
-import read.functions as f
-from read.bdata import Blob
-from read.errors import BufrDecodeWarning
+import coder.functions as f
+from coder.bdata import Blob
+from coder.errors import BufrDecodeWarning
 
 import logging
 logger = logging.getLogger("trollbufr")

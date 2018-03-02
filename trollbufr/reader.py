@@ -33,9 +33,9 @@ from argparse import ArgumentParser
 from argparse import RawDescriptionHelpFormatter
 from version import __version__
 from bufr import Bufr
-from tab.tables import TabBelem
+from coder.tables import TabBelem
 import load_file
-import tab.load_tables
+import coder.load_tables
 
 import logging
 logger = logging.getLogger("trollbufr")
@@ -281,11 +281,11 @@ def run(argv=None):
                                metavar="path"
                                )
         group_tab.add_argument("-T", "--tables_type",
-                               default=tab.load_tables.list_parser()[0],
-                               choices=tab.load_tables.list_parser(),
+                               default=coder.load_tables.list_parser()[0],
+                               choices=coder.load_tables.list_parser(),
                                help="type of table format [%s], default: %s" % (
-                                    "|".join(tab.load_tables.list_parser()),
-                                   tab.load_tables.list_parser()[0]
+                                    "|".join(coder.load_tables.list_parser()),
+                                   coder.load_tables.list_parser()[0]
                                ),
                                metavar="name"
                                )
