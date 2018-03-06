@@ -269,6 +269,11 @@ class AlterState(object):
     def __init__(self):
         self.reset()
 
+    def __str__(self):
+        return "wnum={} wchr={} refmul={} scale={} assoc={} ieee={} refval={}".format(
+            self.wnum, self.wchr, self.refmul, self.scale, self.assoc[-1], self.ieee, self.refval
+        )
+
     def reset(self):
         self.wnum = 0
         """Add to width, for number data fields."""
@@ -284,3 +289,147 @@ class AlterState(object):
         """ Add width for associated quality field. A stack, always use last value."""
         self.ieee = 0
         """ 0|32|64 All numerical values encoded as IEEE floating point number."""
+
+
+class SubsetWriter():
+
+    def __init__(self, tables, blob, descr_list, is_compressed, subset_num, has_backref=False):
+        self.is_compressed = is_compressed
+        self.subs_num = subset_num
+        # Holds table object
+        self._tables = tables
+        # Holds byte array with bufr
+        self._blob = blob
+        # Initial descriptor list
+        self._desc = descr_list
+        # End of data for all subsets
+        self._data_e = -1
+        # Alterator values
+        self._alter = AlterState()
+        # Skip N data descriptors
+        self._skip_data = 0
+        # Recording descriptors for back-referencing
+        self._do_backref_record = has_backref
+        # Recorder for back-referenced descriptors
+        self._backref_record = []
+
+    def __str__(self):
+        return "Subset #%d/%d, decoding:%s" % (self.subs_num, self.inprogress)
+
+    def process(self, subset_list=[]):
+        """ """
+        skip_data = False
+        # Stack for sequence expansion and loops.
+        # Items follow: ([desc,], start, end, mark)
+        stack = []
+        # Alterator values, this resets them at the beginning of the iterator.
+        alter = AlterState()
+        # Current values list
+        cv_lst = subset_list
+        # Index in current values list
+        cv_idx = 0
+        if self.is_compressed:
+            # Put inital descriptor and values list on stack, for compressed BUFR
+            # only one is necessary.
+            stack.append((self._desc, 0, len(self._desc), subset_list, cv_idx))
+        else:
+            # Put inital descriptor and values list times subset-count on stack
+            for cv_lst in subset_list:
+                stack.append((self._desc, 0, len(self._desc), cv_lst, cv_idx))
+            while len(stack):
+                """Loop while descriptor lists on stack"""
+                # dl : current descriptor list
+                # di : index for current descriptor list
+                # de : stop when reaching this index
+                dl, di, de, sv_l, sv_i = stack.pop()
+                if sv_l:
+                    cv_lst, cv_idx = sv_l, sv_i
+                logger.debug("POP *%d %d..%d *%d #%d", len(dl), di, de, len(cv_lst), cv_idx)
+                while di < de:
+                    """Loop over descriptors in current list"""
+
+                    if skip_data:
+                        """Data not present: data is limited to class 01-09,31"""
+                        skip_data -= 1
+                        if 1000 <= dl[di] < 10000 and dl[di] // 1000 != 31:
+                            di += 1
+                            continue
+
+                    if fun.descr_is_nil(dl[di]):
+                        """Null-descriptor to signal end-of-list"""
+                        di += 1
+
+                    elif fun.descr_is_data(dl[di]):
+                        """Element descriptor, decoding bits to value"""
+                        logger.debug("ENCODE %06d '%s'", dl[di], cv_lst[cv_idx])
+                        if self._alter.assoc[-1] and (dl[di] < 31000 or dl[di] > 32000):
+                            fun.get_rval(self._blob, self.is_compressed, self.subs_num,
+                                         fix_width=self._alter.assoc[-1])
+                        elem_b = self._tables.tab_b[dl[di]]
+                        fun.add_val(self._blob, cv_lst[cv_idx], elem_b, alter)
+                        di += 1
+                        cv_idx += 1
+                    elif fun.descr_is_loop(dl[di]):
+                        # Decode loop-descr:
+                        # amount of descr
+                        lm = dl[di] // 1000 - 100
+                        # number of replication
+                        ln = dl[di] % 1000
+                        # Repetition?
+                        is_repetition = False
+                        loop_count = len(cv_lst[cv_idx])
+                        loop_cause = dl[di]
+                        # Increase di to start-of-loop
+                        di += 1
+                        if ln == 0:
+                            # Decode next descr for loop-count
+                            if dl[di] < 30000 or dl[di] >= 40000:
+                                raise BufrDecodeError("No count for  delayed loop!")
+                            elem_b = self._tables.tab_b[dl[di]]
+                            di += 1
+                            fun.add_val(self._blob, loop_count or 0, elem_b)
+                            # Descriptors 31011+31012 mean repetition, not replication
+                            is_repetition = 31010 <= elem_b.descr <= 31012
+                        logger.debug("%s %d * %d->%d from %06d",
+                                     "REPT" if is_repetition else "LOOP",
+                                     lm, ln, loop_count, elem_b.descr)
+                        # Current list on stack (di points after looped descr)
+                        logger.debug("PUSH jump -> *%d %d..%d", len(dl), di + lm, de)
+                        if is_repetition:
+                            stack.append((dl, di + lm, de, cv_lst, cv_idx + 1))
+                            if ln:
+                                stack.append((dl, di, di + lm, cv_lst[cv_idx][0], 0))
+                        else:
+                            stack.append((dl, di + lm, de, cv_lst, cv_idx + 1))
+                            for cv_ll in cv_lst[cv_idx]:
+                                # N*list on stack
+                                logger.debug("PUSH loop -> *%d %d..%d *%s,%d", len(dl), di, di + lm, cv_ll, 0)
+                                stack.append((dl, di, di + lm, cv_ll, 0))
+                                ln -= 1
+                        di = de
+
+                    elif fun.descr_is_oper(dl[di]):
+                        """Operator descritor, alter/modify properties"""
+                        di, v = op.prep_oper(self, dl, di, de, cv_lst, cv_idx)
+                        if v is not None:
+                            # If the operator returned a value, yield it
+                            pass
+                        di += 1
+
+                    elif fun.descr_is_seq(dl[di]):
+                        """Sequence descriptor, replaces current descriptor with expansion"""
+                        logger.debug("SEQ %06d", dl[di])
+                        # Current on stack
+                        logger.debug("PUSH jump -> *%d %d..%d #%d", len(dl), di + 1, de, cv_idx)
+                        stack.append((dl, di + 1, de, None, None))
+                        # Sequence from tabD
+                        dl = self._tables.tab_d[dl[di]]
+                        # Expansion on stack
+                        logger.debug("PUSH seq -> *%d %d..%d #%d", len(dl), 0, len(dl), cv_idx)
+                        stack.append((dl, 0, len(dl), None, None))
+                        # Causes inner while to end
+                        di = de
+
+                    else:
+                        """Invalid descriptor, out of defined range"""
+                        raise BufrDecodeError("Descriptor '%06d' invalid!" % dl[di])

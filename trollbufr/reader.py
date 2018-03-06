@@ -144,11 +144,11 @@ def get_bufr_json(args):
                 json_data.append(["BUFR", bufr._meta["edition"]])
                 # Section 1
                 if bufr._meta["edition"] == 3:
-                    mkeys = ["master", "subcenter", "center", "update",
-                             "sect2", "cat_int", "mver", "lver", ]
+                    mkeys = ["master", "subcenter", "center", "update", "sect2",
+                             "cat", "cat_loc", "mver", "lver", ]
                 else:
-                    mkeys = ["master", "subcenter", "center", "update",
-                             "sect2", "cat_int", "cat_loc", "mver", "lver", ]
+                    mkeys = ["master", "center", "subcenter", "update", "sect2",
+                             "cat", "cat_int", "cat_loc", "mver", "lver", ]
                 mval = []
                 for k in mkeys:
                     mval.append(bufr._meta[k])

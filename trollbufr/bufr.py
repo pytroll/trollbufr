@@ -32,7 +32,8 @@ in this subset.
 """
 import coder.load_tables
 import coder.bufr_sect as sect
-from coder.subset import Subset
+from coder.subset import Subset, SubsetWriter
+from coder.bdata import Blob
 from coder.functions import (descr_is_data, descr_is_loop, descr_is_oper,
                              descr_is_seq, descr_is_nil, get_descr_list)
 from coder.errors import BufrDecodeError, BufrDecodeWarning, BufrTableError
@@ -331,14 +332,41 @@ class Bufr(object):
 
         :param json_data: JSON object.
         :param load_tables: automatically load tables
+        :return: AHL, BUFR : abbrev. heading line + a byte array object
         :raise BufrDecodeWarning: recoverable error.
         :raise BufrDecodeError: error that stops decoding.
         """
+        sect_i = 0
+        sect_start = [0] * 6
+        ahl = json_data[sect_i]
+        sect_i += 1
+        data = Blob()
+        sect_start[sect_i], sect_meta = sect.encode_sect0(data)
+        self._meta.update(sect_meta)
+        sect_i += 1
+        sect_start[sect_i], sect_meta = sect.encode_sect1(data, json_data[sect_i])
+        self._meta.update(sect_meta)
         if load_tables and not self._tables:
             try:
                 self._tables = self.load_tables()
             except StandardError or Warning as exc:
                 raise exc
+        sect_i += 1
+        sect_start[sect_i], sect_meta = sect.encode_sect3(data, json_data[sect_i])
+        self._meta.update(sect_meta)
+        self._subsets = sect_meta['subsets']
+        self._compressed = sect_meta['comp']
+        self._desc = sect_meta['descr']
+        sect_i += 1
+        subset_writer = SubsetWriter(self._tables, data, self._desc, self._compressed, self._subsets)
+        sect_start[sect_i] = sect.encode_sect4(data, json_data[sect_i])
+        subset_writer.process(json_data[sect_i])
+        data.write_skip(8 - (len(data) % 8))
+        sect_i += 1
+        sect_start[sect_i] = sect.encode_sect5(data)
+        sect.encode_sect4_size(data, sect_start[sect_i - 1], sect_start[sect_i])
+        sect.encode_bufr_size(data)
+        return ahl, data.get_bytes()
 
     def get_blob(self):
         """Return binary array object with the BUFR.

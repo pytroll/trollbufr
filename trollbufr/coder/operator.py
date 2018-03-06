@@ -71,6 +71,21 @@ def eval_oper(subset, dl, di, de):
     return l_di, l_rval
 
 
+def prep_oper(subset, dl, di, de, vl, vi):
+    """
+    """
+    # Dictionary referencing operator functions from descriptors xx part.
+    res = {
+    }
+    # Delegating to operator function from dict.
+    logger.debug("OP %d", dl[di])
+    am = dl[di] // 1000 - 200
+    if am not in res:
+        raise BufrDecodeError("Operator %06d not implemented." % dl[di])
+    l_di, l_rval = res[am](subset, dl, di, de, vl, vi)
+    return l_di, l_rval
+
+
 '''
 Template for future operator functions.
 The subset object is passed to them because they might need access to the

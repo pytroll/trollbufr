@@ -54,6 +54,20 @@ class BufrDecodeWarning(Warning):
         return self.msg
 
 
+class BufrEncodeError(StandardError):
+    '''Error class, raised if anything prevents further encoding'''
+
+    def __init__(self, msg):
+        super(BufrEncodeError).__init__(type(self))
+        self.msg = "BufrEncodeError: %s" % msg
+
+    def __str__(self):
+        return self.msg
+
+    def __unicode__(self):
+        return self.msg
+
+
 class BufrTableWarning(Warning):
     '''Warning class, raised at recoverable faults'''
 

@@ -30,7 +30,7 @@ Created on Oct 28, 2016
 import datetime
 import logging
 import struct
-from errors import BufrDecodeError
+from errors import BufrDecodeError, BufrEncodeError
 from tables import TabBelem
 
 logger = logging.getLogger("trollbufr")
@@ -208,6 +208,91 @@ def rval2num(tab_b_elem, alter, rval):
     logger.debug("DECODE %06d: (%d) -> \"%s\"", tab_b_elem.descr, rval, str(val))
 
     return val
+
+
+def num2rval(tab_b_elem, alter, value):
+    """
+    :return: raw value
+
+    :raise: KeyError if descr is not in table.
+    """
+    # The "missing-value" bit-masks for IEEE float/double
+    _IEEE_INF = {32: 0x7f7fffff, 64: 0x7fefffffffffffff}
+
+    # Alter = {'wnum':0, 'wchr':0, 'refval':0, 'scale':0, 'assoc':0}
+    if tab_b_elem.typ == TabBelem.STRING:
+        loc_width = alter.wchr or tab_b_elem.width
+    else:
+        loc_width = tab_b_elem.width + alter.wnum
+    loc_refval = alter.refval.get(tab_b_elem.descr, tab_b_elem.refval * alter.refmul)
+    loc_scale = tab_b_elem.scale + alter.scale
+
+    logger.debug("EVAL %06d: typ:%s width:%d ref:%d scal:%d%+d",
+                 tab_b_elem.descr, tab_b_elem.typ, loc_width, loc_refval, tab_b_elem.scale, alter.scale)
+
+    if value is None and (tab_b_elem.descr < 31000 or tab_b_elem.descr >= 31020):
+        # First, for "missing value" set all bits to 1.
+        # The delayed replication and repetition descr are special cases.
+        if tab_b_elem.typ == TabBelem.STRING:
+            rval = b"\xff" * (loc_width // 8)
+        else:
+            rval = all_one(loc_width)
+    elif alter.ieee and (tab_b_elem.typ == TabBelem.DOUBLE or tab_b_elem.typ == TabBelem.LONG):
+        # IEEE 32b or 64b floating point number, INF means "missing value".
+        if alter.ieee != 32 and alter.ieee != 64:
+            raise BufrDecodeError("Invalid IEEE size %d" % alter.ieee)
+        if alter.ieee == 32:
+            fmt = "f"
+        elif alter.ieee == 64:
+            fmt = "d"
+        else:
+            raise BufrEncodeError("Invalid IEEE size %d" % alter.ieee)
+        if value is None:
+            value = _IEEE_INF[alter.ieee]
+        rval = struct.pack(fmt, value)
+    elif tab_b_elem.typ == TabBelem.DOUBLE or loc_scale > 0:
+        # Float/double: add reference, divide by scale
+        rval = int((value * 10 ** loc_scale) - loc_refval)
+    elif tab_b_elem.typ == TabBelem.LONG:
+        # Integer: add reference, divide by scale
+        rval = int((value * 10 ** loc_scale) - loc_refval)
+    else:
+        rval = value
+
+    logger.debug("ENCODE %06d: (%s) -> \"%s\"", tab_b_elem.descr, value, str(rval))
+
+    return rval, loc_width
+
+
+def add_val(blob,  value, tab_b_elem=None, alter=None, fix_width=None):
+    """
+    """
+    if fix_width is not None:
+        loc_width = fix_width
+    elif tab_b_elem is not None and (31000 <= tab_b_elem.descr < 32000):
+        # replication/repetition descriptor (group 31) is never altered.
+        loc_width = tab_b_elem.width
+        loc_value = value
+    elif tab_b_elem is not None and alter is not None:
+        loc_value, loc_width = num2rval(tab_b_elem, alter, value)
+    else:
+        raise BufrDecodeError("Can't determine width.")
+    if tab_b_elem.typ == TabBelem.STRING:
+        blob.write_bytes(loc_value, loc_width)
+    else:
+        blob.write_uint(loc_value, loc_width)
+
+
+def add_val_comp(blob, value_list, tab_b_elem=None, alter=None, fix_width=None):
+    """
+    """
+    loc_width = fix_width
+    if tab_b_elem is not None and tab_b_elem.typ == TabBelem.STRING:
+        for value in value_list:
+            blob.write_bytes(value, loc_width)
+    else:
+        for value in value_list:
+            blob.write_uint(value, loc_width)
 
 
 def all_one(x):

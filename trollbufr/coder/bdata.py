@@ -36,7 +36,10 @@ class Blob(object):
 
     def __init__(self, data=None):
         """Initialising the class with an octet array (type string)"""
-        self._data = BitStream(bytes=data)
+        if data is None:
+            self._data = BitStream()
+        else:
+            self._data = BitStream(bytes=data)
         self.reset()
 
     def __str__(self):
@@ -121,24 +124,29 @@ class Blob(object):
             return self._data.read("uintbe:%d" % width)
 
     def write_bytes(self, value, width=None):
+        """
+        :param value: character array (String)
+        :param width: the string's width in bits, not octets.
+        """
         if isinstance(value, six.text_type):
             value = value.encode('latin-1')
         value_len = len(value)
         if width is None:
             width = value_len
         else:
+            width //= 8
             if value_len > width:
                 value = value[:width]
             elif value_len < width:
                 value += b' ' * (width - value_len)
         self._data += Bits(bytes=value)
-        return value
+        return len(self._data)
 
     def write_uint(self, value, width):
         value = int(value)
         self._data += ('uintbe:{}={}' if width % 8 == 0 else
                        'uint:{}={}').format(width, value)
-        return value
+        return len(self._data)
 
     def set_uint(self, value, width, bitpos):
         if width // 8 == 0:
