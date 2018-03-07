@@ -65,7 +65,7 @@ def read_bufr_data(args):
                             if descr_entry.mark is not None:
                                 print("  ", descr_entry.mark, end="")
                                 if descr_entry.value:
-                                    print(" ", "".join(str(x) for x in descr_entry.value), end="")
+                                    print("", "".join(str(x) for x in descr_entry.value), end="")
                                 print()
                                 continue
                             if descr_entry.value is None:
@@ -82,9 +82,13 @@ def read_bufr_data(args):
                             if descr_entry.mark is not None:
                                 print("  ", descr_entry.mark, end="")
                                 if descr_entry.value:
-                                    print(" ",
-                                          "".join(str(x) for x in descr_entry.value),
-                                          end="")
+                                    try:
+                                        print("",
+                                              "".join(str(x) for x in descr_entry.value),
+                                              end="")
+                                    except StandardError as e:
+                                        logger.exception("%s", descr_entry)
+                                        raise e
                                 print()
                                 continue
                             d_name, d_unit, d_typ = tabl.lookup_elem(descr_entry.descr)
@@ -137,11 +141,11 @@ def get_bufr_json(args):
             bufr_i += 1
             if args.bulletin is not None and bufr_i != args.bulletin:
                 continue
+            json_bufr = []
             try:
                 bufr.decode(blob, True)
                 # Section 0
-                json_data.append(header)
-                json_data.append(["BUFR", bufr._meta["edition"]])
+                json_bufr.append(["BUFR", bufr._meta["edition"]])
                 # Section 1
                 if bufr._meta["edition"] == 3:
                     mkeys = ["master", "subcenter", "center", "update", "sect2",
@@ -156,7 +160,7 @@ def get_bufr_json(args):
                              bufr._meta["datetime"].day, bufr._meta["datetime"].hour,
                              bufr._meta["datetime"].minute, bufr._meta["datetime"].second)
                             )
-                json_data.append(mval)
+                json_bufr.append(mval)
                 # Section 3
                 sect_buf = []
                 sect_buf.extend([bufr._subsets, bufr._meta["obs"], bufr._meta["comp"]])
@@ -164,7 +168,7 @@ def get_bufr_json(args):
                 for k in bufr._desc:
                     mval.append("%06d" % k)
                 sect_buf.append(mval)
-                json_data.append(sect_buf)
+                json_bufr.append(sect_buf)
                 # Section 4
                 stack = []
                 for report in bufr.next_subset():
@@ -196,15 +200,16 @@ def get_bufr_json(args):
                                     rpl_i += 1
                                     stack.append([])
                             elif mark_el[0] == "BMP":
-                                stack[-1].append(descr_entry.value)
+                                stack[-1].append([[b] for b in descr_entry.value])
                         else:
                             if isinstance(descr_entry.quality, (int, float)):
                                 stack[-1].append(descr_entry.quality)
                             stack[-1].append(descr_entry.value)
-                json_data.append(stack)
-                json_data.append(["7777"])
+                json_bufr.append(stack)
+                json_bufr.append(["7777"])
             except StandardError as e:
                 logger.exception(e)
+            json_data.append({"heading": header, "bufr": json_bufr})
     return json_data
 
 
@@ -233,6 +238,10 @@ def read_bufr_desc(args):
                 print("ERROR\t%s" % e)
                 if logger.isEnabledFor(logging.DEBUG):
                     logger.exception(e)
+
+
+def write_bufr(args):
+    pass
 
 
 def run(argv=None):
@@ -273,6 +282,10 @@ def run(argv=None):
         group_op.add_argument("-j", "--json-dump", dest="json_dump",
                               metavar="file",
                               help="dump data in JSON format"
+                              )
+        group_op.add_argument("-e", "--encode", dest="json_encode",
+                              metavar="file",
+                              help="encode data from JSON file as BUFR"
                               )
         group_tab = parser.add_argument_group(title="table setting")
         group_tab.add_argument("-t", "--tables_path",
@@ -345,6 +358,8 @@ def run(argv=None):
                     json.dump(foo, fh_out)
                 else:
                     json.dump(foo, fh_out, indent=3, separators=(',', ': '))
+        if args.json_encode:
+            write_bufr(args)
 
         if PROFILE:
             pr.disable()

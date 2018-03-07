@@ -27,7 +27,7 @@ trollbufr.bufr.Bufr
 After decoding the meta-information use the iterator over the subsets.
 
 Each subset is held in an instance of class :class:`~trollbufr.read.Subset`, 
-which has the iterator function `next_data()` to iterate over all data elements
+which has the iterator function `next_data()` to iterate over all bin_data elements
 in this subset.
 """
 import coder.load_tables
@@ -49,19 +49,19 @@ class Bufr(object):
     """Holds and decodes a BUFR"""
     # Holds byte-array-like object with bufr
     _blob = None
-    # Meta data
+    # Meta bin_data
     _meta = {}
     # Edition
     _edition = 4
     # Number of subsets
     _subsets = -1
-    # Compressed data
+    # Compressed bin_data
     _compressed = False
     # Initial list of descr (from Sect3)
     _desc = []
-    # Start of data
+    # Start of bin_data
     _data_s = -1
-    # End of data
+    # End of bin_data
     _data_e = -1
     # Path to tables
     _tab_p = None
@@ -70,12 +70,12 @@ class Bufr(object):
     # Holds table object
     _tables = None
 
-    def __init__(self, tab_fmt, tab_path, data=None, json_obj=None):
+    def __init__(self, tab_fmt, tab_path, bin_data=None, json_obj=None):
         self._tab_p = tab_path
         self._tab_f = tab_fmt
-        if data is not None:
-            self._blob = data
-            self._meta = self.decode(data)
+        if bin_data is not None:
+            self._blob = bin_data
+            self._meta = self.decode(bin_data)
         elif json_obj is not None:
             self._meta = self.encode(json_obj)
 
@@ -106,7 +106,7 @@ class Bufr(object):
                       cs))
         s.append(t % ("Update sequence number",
                       self._meta.get("update", "---")))
-        s.append(t % ("Type of data",
+        s.append(t % ("Type of bin_data",
                       ("observed" if self._meta.get("obs", 0) else "other")))
         dc = self._meta.get("cat",
                             "---")
@@ -114,9 +114,9 @@ class Bufr(object):
             dc = self._tables.lookup_common(dc)
         s.append(t % ("Data category",
                       dc))
-        s.append(t % ("International data sub-category",
+        s.append(t % ("International bin_data sub-category",
                       self._meta.get("cat_int", "---")))
-        s.append(t % ("Local data sub-category",
+        s.append(t % ("Local bin_data sub-category",
                       self._meta.get("cat_loc", "---")))
         s.append(t % ("Version number of master table",
                       self._meta.get("mver", "---")))
@@ -128,7 +128,7 @@ class Bufr(object):
                       ("yes" if self._meta.get("sect2", False) else "no")))
         s.append(t % ("Compression",
                       ("yes" if self._meta.get("comp", False) else "no")))
-        s.append(t % ("Number of data subsets",
+        s.append(t % ("Number of bin_data subsets",
                       self._meta.get("subsets", "---")))
         return "\n".join(s)
 
@@ -229,7 +229,7 @@ class Bufr(object):
             if self._compressed:
                 self._blob.reset(self._data_s)
             if self._blob.p >= self._data_e:
-                raise BufrDecodeError("Unexpected end of data section!")
+                raise BufrDecodeError("Unexpected end of bin_data section!")
             # Create new Subset object
             subset = Subset(self._tables,
                             self._blob,
@@ -240,7 +240,7 @@ class Bufr(object):
                             self._data_e)
             yield subset
             i += 1
-            # Padding bits (and to next even byte) for data pointer if necessary
+            # Padding bits (and to next even byte) for bin_data pointer if necessary
             if self._edition < 4:
                 p = self._blob.p
                 bc = self._blob.bc
@@ -256,19 +256,19 @@ class Bufr(object):
         logger.info("BUFR END")
         raise StopIteration
 
-    def decode(self, data, load_tables=True):
-        """Decodes all meta-data of the BUFR.
+    def decode(self, bin_data, load_tables=True):
+        """Decodes all meta-bin_data of the BUFR.
 
-        This function prepares the iterators for reading data.
+        This function prepares the iterators for reading bin_data.
 
-        :param data: Blob: data object with complete BUFR.
+        :param bin_data: Blob: bin_data object with complete BUFR.
         :param load_tables: bool: automatically load load_tables.
         :raise BufrDecodeWarning: recoverable error.
         :raise BufrDecodeError: error that stops decoding.
         """
-        if data is None or not len(data):
+        if bin_data is None or not len(bin_data):
             raise BufrDecodeWarning("Data buffer is empty!")
-        self._blob = data
+        self._blob = bin_data
         self._meta = {}
         logger.info("SECT 0..5 DECODE")
 
@@ -328,7 +328,7 @@ class Bufr(object):
     def encode(self, json_data, load_tables=True):
         """Encodes the JSON object as BUFR.
 
-        This function prepares the iterators for reading data.
+        This function prepares the iterators for reading bin_data.
 
         :param json_data: JSON object.
         :param load_tables: automatically load tables
@@ -336,15 +336,13 @@ class Bufr(object):
         :raise BufrDecodeWarning: recoverable error.
         :raise BufrDecodeError: error that stops decoding.
         """
-        sect_i = 0
         sect_start = [0] * 6
-        ahl = json_data[sect_i]
-        sect_i += 1
-        data = Blob()
-        sect_start[sect_i], sect_meta = sect.encode_sect0(data)
+        bin_data = Blob()
+        sect_i = 0
+        sect_start[sect_i], sect_meta = sect.encode_sect0(bin_data)
         self._meta.update(sect_meta)
         sect_i += 1
-        sect_start[sect_i], sect_meta = sect.encode_sect1(data, json_data[sect_i])
+        sect_start[sect_i], sect_meta = sect.encode_sect1(bin_data, json_data[sect_i])
         self._meta.update(sect_meta)
         if load_tables and not self._tables:
             try:
@@ -352,21 +350,21 @@ class Bufr(object):
             except StandardError or Warning as exc:
                 raise exc
         sect_i += 1
-        sect_start[sect_i], sect_meta = sect.encode_sect3(data, json_data[sect_i])
+        sect_start[sect_i], sect_meta = sect.encode_sect3(bin_data, json_data[sect_i])
         self._meta.update(sect_meta)
         self._subsets = sect_meta['subsets']
         self._compressed = sect_meta['comp']
         self._desc = sect_meta['descr']
         sect_i += 1
-        subset_writer = SubsetWriter(self._tables, data, self._desc, self._compressed, self._subsets)
-        sect_start[sect_i] = sect.encode_sect4(data, json_data[sect_i])
+        subset_writer = SubsetWriter(self._tables, bin_data, self._desc, self._compressed, self._subsets)
+        sect_start[sect_i] = sect.encode_sect4(bin_data, json_data[sect_i])
         subset_writer.process(json_data[sect_i])
-        data.write_skip(8 - (len(data) % 8))
+        bin_data.write_align()
         sect_i += 1
-        sect_start[sect_i] = sect.encode_sect5(data)
-        sect.encode_sect4_size(data, sect_start[sect_i - 1], sect_start[sect_i])
-        sect.encode_bufr_size(data)
-        return ahl, data.get_bytes()
+        sect_start[sect_i] = sect.encode_sect5(bin_data)
+        sect.encode_sect4_size(bin_data, sect_start[sect_i - 1], sect_start[sect_i])
+        sect.encode_bufr_size(bin_data)
+        return bin_data.get_bytes()
 
     def get_blob(self):
         """Return binary array object with the BUFR.

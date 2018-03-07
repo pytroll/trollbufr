@@ -19,13 +19,13 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 Class around the BUFR byte string.
 
 Created on Nov 17, 2016
 
 @author: amaul
-'''
+"""
 from bitstring import Bits, BitStream
 import six
 
@@ -34,12 +34,12 @@ class Blob(object):
 
     _data = None
 
-    def __init__(self, data=None):
+    def __init__(self, bin_data=None):
         """Initialising the class with an octet array (type string)"""
-        if data is None:
+        if bin_data is None:
             self._data = BitStream()
         else:
-            self._data = BitStream(bytes=data)
+            self._data = BitStream(bytes=bin_data)
         self.reset()
 
     def __str__(self):
@@ -48,11 +48,11 @@ class Blob(object):
     def __len__(self):
         return len(self._data)
 
-#     def __getitem__(self, x):
-#         if isinstance(x, tuple):
-#             return self._data[x[0]:x[1]]
-#         else:
-#             return self._data[x]
+    def __getitem__(self, x):
+        if isinstance(x, tuple):
+            return self._data[x[0]:x[1]]
+        else:
+            return self._data[x]
 
     def reset(self, x=0):
         """Reset internal pointer to position x or start"""
@@ -82,15 +82,21 @@ class Blob(object):
     def readlist(self, fmt):
         return self._data.readlist(fmt)
 
-    def writelist(self, fmt, values):
-        self._data += Bits(fmt.format(*values))
+    def writelist(self, fmt, json_data):
+        self._data += Bits(fmt.format(*json_data))
 
     def read_align(self, even=False):
         p = self._data.pos
         self._data.bytealign()
-        if even and self._data.pos / 8 & 1:
+        if even and (self._data.pos / 8) & 1:
             self._data.pos += 8
         return self._data.pos - p
+
+    def write_align(self, even=False):
+        width = (8 - len(self._data) % 8) & 7
+        if even and (len(self._data) / 8) & 1:
+            width += 8
+        self._data += ("uint:{}={}").format(width, 0)
 
     def read_skip(self, width):
         """Skip width bits.
@@ -107,8 +113,8 @@ class Blob(object):
         Move internal pointer when some bits don't need processing.
         :return: Void.
         """
-        self._data += ('uintbe:{}={}' if not width & 7 else
-                       'uint:{}={}').format(width, 0)
+        self._data += ("uintbe:{}={}" if not width & 7 else
+                       "uint:{}={}").format(width, 0)
 
     def read_bytes(self, width=1):
         return self._data.read("bytes:%d" % width)
@@ -129,7 +135,7 @@ class Blob(object):
         :param width: the string's width in bits, not octets.
         """
         if isinstance(value, six.text_type):
-            value = value.encode('latin-1')
+            value = value.encode("latin-1")
         value_len = len(value)
         if width is None:
             width = value_len
@@ -138,14 +144,14 @@ class Blob(object):
             if value_len > width:
                 value = value[:width]
             elif value_len < width:
-                value += b' ' * (width - value_len)
+                value += b" " * (width - value_len)
         self._data += Bits(bytes=value)
         return len(self._data)
 
     def write_uint(self, value, width):
         value = int(value)
-        self._data += ('uintbe:{}={}' if width % 8 == 0 else
-                       'uint:{}={}').format(width, value)
+        self._data += ("uintbe:{}={}" if width % 8 == 0 else
+                       "uint:{}={}").format(width, value)
         return len(self._data)
 
     def set_uint(self, value, width, bitpos):
