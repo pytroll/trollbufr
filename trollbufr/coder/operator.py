@@ -33,7 +33,7 @@ import logging
 logger = logging.getLogger("trollbufr")
 
 
-def eval_oper(subset, dl, di, de):
+def eval_oper(subset, descr):
     """Evaluate operator, read octets from data section if necessary.
 
     :return: di, None|DescrDataEntry(desc,mark,value,qual)
@@ -63,15 +63,14 @@ def eval_oper(subset, dl, di, de):
         43: fun_fail,  # Categorial forecast values follow / Cancel categorial forecast
     }
     # Delegating to operator function from dict.
-    logger.debug("OP %d", dl[di])
-    am = dl[di] // 1000 - 200
+    logger.debug("OP %d", descr)
+    am = descr // 1000 - 200
     if am not in res:
-        raise BufrDecodeError("Operator %06d not implemented." % dl[di])
-    l_r = res[am](subset, dl, di, de)
-    return l_r[0], l_r[1]
+        raise BufrDecodeError("Operator %06d not implemented." % descr)
+    return res[am](subset, descr)
 
 
-def prep_oper(subset, dl, di, de, vl, vi):
+def prep_oper(subset, descr):
     """Evaluate operator, write octets to data section if necessary.
 
     :return: di, None|DescrDataEntry, vi
@@ -80,7 +79,7 @@ def prep_oper(subset, dl, di, de, vl, vi):
     res = {
         1: fun_01,  # Change data width
         2: fun_02,  # Change scale
-        3: fun_fail,  # Set of new reference values
+        3: fun_03_w,  # Set of new reference values
         4: fun_04,  # Add associated field, shall be followed by 031021
         5: fun_fail,  # Signify with characters, plain language text as returned value
         6: fun_fail,  # Length of local descriptor
@@ -101,15 +100,11 @@ def prep_oper(subset, dl, di, de, vl, vi):
         43: fun_fail,  # Categorial forecast values follow / Cancel categorial forecast
     }
     # Delegating to operator function from dict.
-    logger.debug("OP %d", dl[di])
-    am = dl[di] // 1000 - 200
+    logger.debug("OP %d", descr)
+    am = descr // 1000 - 200
     if am not in res:
-        raise BufrDecodeError("Operator %06d not implemented." % dl[di])
-    l_r = res[am](subset, dl, di, de, vl, vi)
-    if len(l_r) == 2:
-        return l_r[0], l_r[1], vi
-    else:
-        return l_r
+        raise BufrDecodeError("Operator %06d not implemented." % descr)
+    return res[am](subset, descr)
 
 
 '''
@@ -119,7 +114,7 @@ subset's private attributes and methods.
 
 def funXY(subset, dl, di, de):
     """"""
-    an = dl[di] % 1000
+    an = descr % 1000
     if an==0:
         """Define/use/follows"""
         pass
@@ -130,34 +125,45 @@ def funXY(subset, dl, di, de):
 '''
 
 
-def fun_01(subset, dl, di, _):
+def fun_01(subset, descr):
     """Change data width"""
-    an = dl[di] % 1000
+    an = descr % 1000
     subset._alter.wnum = an - 128 if an else 0
-    return di, None
+    return None
 
 
-def fun_02(subset, dl, di, _):
+def fun_02(subset, descr):
     """Change scale"""
-    an = dl[di] % 1000
+    an = descr % 1000
     subset._alter.scale = an - 128 if an else 0
-    return di, None
+    return None
 
 
-def fun_03_r(subset, dl, di, de):
+def fun_03_r(subset, descr):
     """Set of new reference values"""
-    an = dl[di] % 1000
+    an = descr % 1000
     if an == 0:
         subset._alter.refval = {}
     else:
-        l_di = subset._read_refval(dl, di, de)
+        subset._read_refval(subset)
         logger.debug("OP refval -> %s" % subset._alter.refval)
-    return l_di, None
+    return None
 
 
-def fun_04(subset, dl, di, _):
+def fun_03_w(subset, descr):
+    """Write and set of new reference values"""
+    an = descr % 1000
+    if an == 0:
+        subset._alter.refval = {}
+    else:
+        subset._write_refval(subset)
+        logger.debug("OP refval -> %s" % subset._alter.refval)
+    return None
+
+
+def fun_04(subset, descr):
     """Add associated field, shall be followed by 031021"""
-    an = dl[di] % 1000
+    an = descr % 1000
     # Manages stack for associated field, the value added last shall be used.
     if an == 0:
         subset._alter.assoc.pop()
@@ -165,12 +171,12 @@ def fun_04(subset, dl, di, _):
             subset._alter.assoc = [0]
     else:
         subset._alter.assoc.append(subset._alter.assoc[-1] + an)
-    return di, None
+    return None
 
 
-def fun_05_r(subset, dl, di, _):
+def fun_05_r(subset, descr):
     """Signify with characters, plain language text as returned value"""
-    an = dl[di] % 1000
+    an = descr % 1000
     foo = fun.get_rval(subset._blob,
                        subset.is_compressed,
                        subset.subs_num,
@@ -178,24 +184,24 @@ def fun_05_r(subset, dl, di, _):
     v = fun.rval2str(foo)
     logger.debug("OP text -> '%s'", v)
     # Special rval for plain character
-    l_rval = fun.DescrDataEntry(dl[di], None, v, None)
-    return di, l_rval
+    l_rval = fun.DescrDataEntry(descr, None, v, None)
+    return l_rval
 
 
-def fun_06_r(subset, dl, di, _):
+def fun_06_r(subset, descr):
     """Length of local descriptor"""
-    an = dl[di] % 1000
+    an = descr % 1000
     fun.get_rval(subset._blob,
                  subset.is_compressed,
                  subset.subs_num,
                  fix_width=an)
-    l_di = di + 1
-    return l_di, None
+    subset._di += 1
+    return None
 
 
-def fun_07(subset, dl, di, _):
+def fun_07(subset, descr):
     """Change scale, reference, width"""
-    an = dl[di] % 1000
+    an = descr % 1000
     if an == 0:
         subset._alter.scale = 0
         subset._alter.refmul = 1
@@ -204,59 +210,71 @@ def fun_07(subset, dl, di, _):
         subset._alter.scale = an
         subset._alter.refmul = 10 ^ an
         subset._alter.wnum = ((10 * an) + 2) / 3
-    return di, None
+    return None
 
 
-def fun_08(subset, dl, di, _):
+def fun_08(subset, descr):
     """Change data width for characters"""
-    an = dl[di] % 1000
+    an = descr % 1000
     subset._alter.wchr = an * 8 if an else 0
-    return di, None
+    return None
 
 
-def fun_09(subset, dl, di, _):
+def fun_09(subset, descr):
     """IEEE floating point representation"""
-    an = dl[di] % 1000
+    an = descr % 1000
     subset._alter.ieee = an
-    return di, None
+    return None
 
 
-def fun_21(subset, dl, di, _):
+def fun_21(subset, descr):
     """Data not present"""
-    an = dl[di] % 1000
+    an = descr % 1000
     subset._skip_data = an
-    return di, None
+    return None
 
 
-def fun_22_r(subset, dl, di, _):
+def fun_22_r(subset, descr):
     """Quality Assessment Information"""
-    logger.debug("OP %d", dl[di])
-    en = subset._tables.tab_c.get(dl[di], ("Operator",))
+    logger.debug("OP %d", descr)
+    en = subset._tables.tab_c.get(descr, ("Operator",))
     # An additional rval for operators where no further action is required
-    l_rval = fun.DescrDataEntry(dl[di], "OPR", en[0], None)
-    return di, l_rval
+    l_rval = fun.DescrDataEntry(descr, "OPR", en[0], None)
+    return l_rval
 
 
-def fun_24_r(subset, dl, di, _):
+def fun_24_r(subset, descr):
     """First-order statistical values."""
-    an = dl[di] % 1000
-    return fun_statistic_read(subset, dl, di, an)
+    an = descr % 1000
+    return fun_statistic_read(subset, descr, an)
 
 
-def fun_25_r(subset, dl, di, _):
+def fun_24_w(subset, descr):
+    """First-order statistical values."""
+    an = descr % 1000
+    return fun_statistic_write(subset, descr, an)
+
+
+def fun_25_r(subset, descr):
     """Difference statistical values."""
-    an = dl[di] % 1000
-    return fun_statistic_read(subset, dl, di, an)
+    an = descr % 1000
+    return fun_statistic_read(subset, descr, an)
 
 
-def fun_statistic_read(subset, dl, di, an):
+def fun_25_w(subset, descr):
+    """Difference statistical values."""
+    an = descr % 1000
+    return fun_statistic_write(subset, descr, an)
+
+
+def fun_statistic_read(subset, descr, an):
     """Various operators for statistical values."""
-    logger.debug("OP %d", dl[di])
+    logger.debug("OP %d", descr)
     if an == 0:
         """Statistical values follow."""
-        en = subset._tables.tab_c.get(dl[di], ("Operator",))
+        en = subset._tables.tab_c.get(descr, ("Operator",))
         # Local return value: long name of this operator.
-        l_rval = fun.DescrDataEntry(dl[di], "OPR", en[0], None)
+        l_rval = fun.DescrDataEntry(descr, "OPR", en[0], None)
 
         subset._backref_stack = [subset._backref_record[i]
                                  for i in range(len(subset._bitmap) - 1, 0, -1)
@@ -270,29 +288,56 @@ def fun_statistic_read(subset, dl, di, an):
                            tab_b_elem=bar[0],
                            alter=bar[1])
         v = fun.rval2num(bar[0], bar[1], foo)
-        l_rval = fun.DescrDataEntry(dl[di], None, v, bar[0])
+        l_rval = fun.DescrDataEntry(descr, None, v, bar[0])
     else:
-        raise BufrDecodeError("Unknown operator '%d'!", dl[di])
-    return di, l_rval
+        raise BufrDecodeError("Unknown operator '%d'!", descr)
+    return l_rval
 
 
-def fun_35_r(subset, dl, di, _):
+def fun_statistic_write(subset, descr, an):
+    """Various operators for statistical values."""
+    logger.debug("OP %d", descr)
+    if an == 0:
+        """Statistical values follow."""
+        en = subset._tables.tab_c.get(descr, ("Operator",))
+        # Local return value: long name of this operator.
+        l_rval = fun.DescrDataEntry(descr, "OPR", en[0], None)
+
+        subset._backref_stack = [subset._backref_record[i]
+                                 for i in range(len(subset._bitmap) - 1, 0, -1)
+                                 if subset._bitmap[i] == 0]
+    elif an == 255:
+        """Statistical values marker operator."""
+        bar = subset._backref_stack.pop()
+        foo = fun.get_rval(subset._blob,
+                           subset.is_compressed,
+                           subset.subs_num,
+                           tab_b_elem=bar[0],
+                           alter=bar[1])
+        v = fun.rval2num(bar[0], bar[1], foo)
+        l_rval = fun.DescrDataEntry(descr, None, v, bar[0])
+    else:
+        raise BufrDecodeError("Unknown operator '%d'!", descr)
+    return l_rval
+
+
+def fun_35_r(subset, descr):
     """Cancel backward data reference."""
-    if dl[di] == 235000:
+    if descr == 235000:
         subset._backref_record = []
         subset._do_backref_record = True
-    return di, None
+    return None
 
 
-def fun_36_r(subset, dl, di, _):
+def fun_36_r(subset, descr):
     """Define data present bit-map."""
     # Evaluate following replication descr.
-    di += 1
-    am = dl[di] // 1000 - 100
-    an = dl[di] % 1000
+    subset._di += 1
+    am = subset._dl[subset._di] // 1000 - 100
+    an = subset._dl[subset._di] % 1000
     # Move to data present indicating descr.
-    di += 1
-    if am != 1 or dl[di] != 31031:
+    subset._di += 1
+    if am != 1 or subset._dl[subset._di] != 31031:
         raise BufrDecodeError("Fault in replication defining bitmap!")
     subset._bitmap = [fun.get_rval(subset._blob,
                                    subset.is_compressed,
@@ -300,36 +345,35 @@ def fun_36_r(subset, dl, di, _):
                                    fix_width=1)
                       for _ in range(an)]
     subset._do_backref_record = False
-    l_rval = fun.DescrDataEntry(dl[di], "BMP", subset._bitmap, None)
-    return di, l_rval
+    l_rval = fun.DescrDataEntry(descr, "BMP", subset._bitmap, None)
+    return l_rval
 
 
-def fun_37_r(subset, dl, di, _):
+def fun_37_r(subset, descr):
     """Use (237000) or cancel use (237255) defined data present bit-map."""
-    if dl[di] == 237000:
-        l_rval = fun.DescrDataEntry(dl[di], "BMP", subset._bitmap, None)
-    elif dl[di] == 237255:
+    if descr == 237000:
+        l_rval = fun.DescrDataEntry(descr, "BMP", subset._bitmap, None)
+    elif descr == 237255:
         subset._bitmap = []
-    return di, l_rval
+    return l_rval
 
 
-def fun_37_w(*args):
+def fun_37_w(subset, descr):
     """Skip a bitmap list if one is present in the json data set."""
-    if isinstance(args[-2], (list, tuple)):
-        return args[2], None, args[-1] + 1
-    else:
-        return args[2], None
+    if isinstance(subset._vl[subset._vi], (list, tuple)):
+        pass
+    return None
 
 
-def fun_noop(*args):
+def fun_noop(*_):
     """No further acton required.
 
     :param args: list, at least [subset, dl, di, de]:
     """
-    return args[2], None
+    return None
 
 
-def fun_fail(*args):
+def fun_fail(_, descr):
     """Not implemented.
 
     This is a dummy function for operators who are to expect (as from BUFR
@@ -337,4 +381,4 @@ def fun_fail(*args):
 
     :param args: list, at least [subset, dl, di, de]:
     """
-    raise NotImplementedError("Operator %06d not implemented." % args[1][args[2]])
+    raise NotImplementedError("Operator %06d not implemented." % descr)

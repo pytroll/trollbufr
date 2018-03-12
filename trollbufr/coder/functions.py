@@ -66,7 +66,8 @@ def str2num(octets):
 def octets2num(bin_data, offset, count):
     """Convert character slice of length count from bin_data (high->low) to int.
 
-    Returns offset+count, the character after the converted characters, and the integer value.
+    Returns offset+count, the character after the converted characters, 
+    and the integer value.
 
     :return: offset,value
     """
@@ -81,7 +82,8 @@ def octets2num(bin_data, offset, count):
 def get_rval(bin_data, comp, subs_num, tab_b_elem=None, alter=None, fix_width=None):
     """Read a raw value integer from the bin_data section.
 
-    The number of bits are either fixed or determined from Tab.B and previous alteration operators.
+    The number of bits are either fixed or determined from Tab.B and previous 
+    alteration operators.
     Compression is taken into account.
 
     :return: raw value integer
@@ -117,7 +119,11 @@ def get_rval(bin_data, comp, subs_num, tab_b_elem=None, alter=None, fix_width=No
     else:
         raise BufrDecodeError("Can't determine width.")
     if comp:
-        return cset2octets(bin_data, loc_width, subs_num, tab_b_elem.typ if tab_b_elem is not None else TabBelem.LONG)
+        return cset2octets(bin_data,
+                           loc_width,
+                           subs_num,
+                           tab_b_elem.typ if tab_b_elem is not None
+                           else TabBelem.LONG)
     else:
         return bin_data.read_bits(loc_width)
 
@@ -149,7 +155,9 @@ def cset2octets(bin_data, loc_width, subs_num, btyp):
 
 
 def rval2str(rval):
-    """Each byte of the integer rval is taken as a character, they are joined into a string"""
+    """Each byte of the integer rval is taken as a character, 
+    they are joined into a string.
+    """
     octets = []
     while rval:
         if rval & 0xFF >= 0x20:
@@ -190,13 +198,15 @@ def rval2num(tab_b_elem, alter, rval):
         loc_width = tab_b_elem.width + alter.wnum
     loc_refval = alter.refval.get(tab_b_elem.descr, tab_b_elem.refval * alter.refmul)
     loc_scale = tab_b_elem.scale + alter.scale
-    if rval == all_one(loc_width) and (tab_b_elem.descr < 31000 or tab_b_elem.descr >= 31020):
+    if rval == all_one(loc_width) and (tab_b_elem.descr < 31000
+                                       or tab_b_elem.descr >= 31020):
         # First, test if all bits are set, which usually means "missing value".
         # The delayed replication and repetition descr are special nut-cases.
         logger.debug("rval %d ==_(1<<%d)%d    #%06d/%d", rval, loc_width,
                      all_one(loc_width), tab_b_elem.descr, tab_b_elem.descr / 1000)
         val = None
-    elif alter.ieee and (tab_b_elem.typ == TabBelem.DOUBLE or tab_b_elem.typ == TabBelem.LONG):
+    elif alter.ieee and (tab_b_elem.typ == TabBelem.DOUBLE
+                         or tab_b_elem.typ == TabBelem.LONG):
         # IEEE 32b or 64b floating point number, INF means "missing value".
         if alter.ieee not in _IEEE_INF:
             raise BufrDecodeError("Invalid IEEE size %d" % alter.ieee)
@@ -303,13 +313,12 @@ def num2cval(tab_b_elem, alter, value_list):
         loc_width = rval_list[1]
         min_value = min(rval_list[::2])
         min_width = 0
-        recal_val = [(v - min_value if v != all_one(loc_width) else None) for v in rval_list[::2]]
+        recal_val = [(v - min_value if v != all_one(loc_width) else None)
+                     for v in rval_list[::2]]
         recal_max_val = max(recal_val)
-
-        logger.debug("%s %s %s %s", loc_width, min_value, recal_max_val, recal_val)
-
         min_width = recal_max_val.bit_length()
-        recal_val = [(v if v is not None else all_one(min_width)) for v in recal_val]
+        recal_val = [(v if v is not None else all_one(min_width))
+                     for v in recal_val]
 
     logger.debug("lw:%d  mval:%s  mwi:%d  max:%s  recal_vaL:%s", loc_width,
                  min_value, min_width, recal_max_val, recal_val)
