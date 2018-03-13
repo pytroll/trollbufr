@@ -31,26 +31,9 @@ import datetime
 import logging
 import struct
 from errors import BufrDecodeError, BufrEncodeError
-from tables import TabBelem
+from bufr_types import AlterState, TabBType
 
 logger = logging.getLogger("trollbufr")
-
-from collections import namedtuple
-DescrDataEntry = namedtuple("DescrDataEntry", "descr mark value quality")
-"""Description of 'mark' for non-data types:
-SEQ desc : Following descriptors by expansion of sequence descriptor desc.
-SEQ END  : End of sequence expansion.
-RPL #n   : Descriptor replication number #n begins.
-RPL END  : End of descriptor replication.
-RPL NIL  : Descriptor replication evaluated to zero replications.
-REP #n   : Descriptor and data repetition, all descriptor and data between
-           this and REP END are to be repeated #n times.
-REP END  : End of desriptor and data repetition.
-OPR desc : Operator, which read and returned data values. 
-BMP      : Use the data present bit-map to refer to the data descriptors 
-           which immediately precede the operator to which it relates.
-           The bitmap is returned in the named tuple item 'value'.
-"""
 
 
 def str2num(octets):
@@ -98,13 +81,13 @@ def get_rval(bin_data, comp, subs_num, tab_b_elem=None, alter=None, fix_width=No
         # replication/repetition descriptor (group 31) is never altered.
         loc_width = tab_b_elem.width
         if logger.isEnabledFor(logging.DEBUG):
-            logger.debug("OCTETS %06d: NAL w+a:_+_ fw:_ qual:_ bc:%d #%d->ord(%02X)",
-                         tab_b_elem.descr, bin_data.bc, bin_data.p, ord(bin_data[bin_data.p])
+            logger.debug("OCTETS %06d: NAL w+a:_+_ fw:_ qual:_ bc:%d #%d",  # ->ord(%02X)",
+                         tab_b_elem.descr, bin_data.bc, bin_data.p,  # ord(bin_data[bin_data.p])
                          )
     elif tab_b_elem is not None and alter is not None:
-        if tab_b_elem.typ == TabBelem.STRING and alter.wchr:
+        if tab_b_elem.typ == TabBType.STRING and alter.wchr:
             loc_width = alter.wchr
-        elif tab_b_elem.typ == TabBelem.DOUBLE or tab_b_elem.typ == TabBelem.LONG:
+        elif tab_b_elem.typ == TabBType.DOUBLE or tab_b_elem.typ == TabBType.LONG:
             if alter.ieee:
                 loc_width = alter.ieee
             else:
@@ -123,7 +106,7 @@ def get_rval(bin_data, comp, subs_num, tab_b_elem=None, alter=None, fix_width=No
                            loc_width,
                            subs_num,
                            tab_b_elem.typ if tab_b_elem is not None
-                           else TabBelem.LONG)
+                           else TabBType.LONG)
     else:
         return bin_data.read_bits(loc_width)
 
@@ -135,7 +118,7 @@ def cset2octets(bin_data, loc_width, subs_num, btyp):
     """
     min_val = bin_data.read_bits(loc_width)
     cwidth = bin_data.read_bits(6)
-    if btyp == TabBelem.STRING:
+    if btyp == TabBType.STRING:
         cwidth *= 8
     if cwidth == 0 or min_val == all_one(loc_width):
         # All equal or all missing
@@ -192,7 +175,7 @@ def rval2num(tab_b_elem, alter, rval):
     val = None
 
     # Alter = {'wnum':0, 'wchr':0, 'refval':0, 'scale':0, 'assoc':0}
-    if tab_b_elem.typ == TabBelem.STRING and alter.wchr:
+    if tab_b_elem.typ == TabBType.STRING and alter.wchr:
         loc_width = alter.wchr
     else:
         loc_width = tab_b_elem.width + alter.wnum
@@ -205,8 +188,8 @@ def rval2num(tab_b_elem, alter, rval):
         logger.debug("rval %d ==_(1<<%d)%d    #%06d/%d", rval, loc_width,
                      all_one(loc_width), tab_b_elem.descr, tab_b_elem.descr / 1000)
         val = None
-    elif alter.ieee and (tab_b_elem.typ == TabBelem.DOUBLE
-                         or tab_b_elem.typ == TabBelem.LONG):
+    elif alter.ieee and (tab_b_elem.typ == TabBType.DOUBLE
+                         or tab_b_elem.typ == TabBType.LONG):
         # IEEE 32b or 64b floating point number, INF means "missing value".
         if alter.ieee not in _IEEE_INF:
             raise BufrDecodeError("Invalid IEEE size %d" % alter.ieee)
@@ -214,13 +197,13 @@ def rval2num(tab_b_elem, alter, rval):
             val = struct.unpack(_IEEE_INF[alter.ieee][0], rval)
         else:
             val = None
-    elif tab_b_elem.typ == TabBelem.DOUBLE or loc_scale > 0:
+    elif tab_b_elem.typ == TabBType.DOUBLE or loc_scale > 0:
         # Float/double: add reference, divide by scale
         val = float(rval + loc_refval) / 10 ** loc_scale
-    elif tab_b_elem.typ == TabBelem.LONG:
+    elif tab_b_elem.typ == TabBType.LONG:
         # Integer: add reference, divide by scale
         val = (rval + loc_refval) / 10 ** loc_scale
-    elif tab_b_elem.typ == TabBelem.STRING:
+    elif tab_b_elem.typ == TabBType.STRING:
         # For string, all bytes are reversed.
         val = rval2str(rval)
     else:
@@ -244,39 +227,31 @@ def num2rval(tab_b_elem, alter, value):
     :raise: KeyError if descr is not in table.
     """
     if alter is None:
-        alter_wnum = 0
-        alter_wchr = 0
-        alter_refval = {}
-        alter_refmul = 1
-        alter_scale = 0
-        alter_ieee = 0
-    else:
-        alter_wnum, alter_wchr, alter_refval, alter_refmul, alter_scale, alter_ieee = (
-            alter.wnum, alter.wchr, alter.refval, alter.refmul, alter.scale, alter.ieee
-        )
+        # If alter is None, we make a new, empty object for default values.
+        alter = AlterState()
     # Alter = {'wnum':0, 'wchr':0, 'refval':0, 'scale':0, 'assoc':0}
-    if tab_b_elem.typ == TabBelem.STRING:
-        loc_width = alter_wchr or tab_b_elem.width
+    if tab_b_elem.typ == TabBType.STRING:
+        loc_width = alter.wchr or tab_b_elem.width
     else:
-        loc_width = tab_b_elem.width + alter_wnum
-    loc_refval = alter_refval.get(tab_b_elem.descr, tab_b_elem.refval * alter_refmul)
-    loc_scale = tab_b_elem.scale + alter_scale
+        loc_width = tab_b_elem.width + alter.wnum
+    loc_refval = alter.refval.get(tab_b_elem.descr, tab_b_elem.refval * alter.refmul)
+    loc_scale = tab_b_elem.scale + alter.scale
     if value is None and (tab_b_elem.descr < 31000 or tab_b_elem.descr >= 31020):
         # First, for "missing value" set all bits to 1.
         # The delayed replication and repetition descr are special cases.
-        if tab_b_elem.typ == TabBelem.STRING:
+        if tab_b_elem.typ == TabBType.STRING:
             rval = b"\xff" * (loc_width // 8)
         else:
             rval = all_one(loc_width)
-    elif alter_ieee and (tab_b_elem.typ == TabBelem.DOUBLE or tab_b_elem.typ == TabBelem.LONG):
+    elif alter.ieee and (tab_b_elem.typ == TabBType.DOUBLE or tab_b_elem.typ == TabBType.LONG):
         # IEEE 32b or 64b floating point number, INF means "missing value".
-        if alter_ieee not in _IEEE_INF:
-            raise BufrEncodeError("Invalid IEEE size %d" % alter_ieee)
-        fmt = _IEEE_INF[alter_ieee][0]
+        if alter.ieee not in _IEEE_INF:
+            raise BufrEncodeError("Invalid IEEE size %d" % alter.ieee)
+        fmt = _IEEE_INF[alter.ieee][0]
         if value is None:
-            value = _IEEE_INF[alter_ieee][1]
+            value = _IEEE_INF[alter.ieee][1]
         rval = struct.pack(fmt, value)
-    elif tab_b_elem.typ == TabBelem.LONG or tab_b_elem.typ == TabBelem.DOUBLE or loc_scale > 0:
+    elif tab_b_elem.typ == TabBType.LONG or tab_b_elem.typ == TabBType.DOUBLE or loc_scale > 0:
         # Float/double/integer: add reference, divide by scale
         rval = int(round((value * 10 ** loc_scale) - loc_refval))
     else:
@@ -284,7 +259,7 @@ def num2rval(tab_b_elem, alter, value):
 
     logger.debug("EVAL-N  %06d: typ:%s width:%d ref:%d scal:%d%+d val:(%s)->(%s)",
                  tab_b_elem.descr, tab_b_elem.typ, loc_width, loc_refval,
-                 tab_b_elem.scale, alter_scale, value, str(rval))
+                 tab_b_elem.scale, alter.scale, value, str(rval))
 
     return rval, loc_width
 
@@ -307,6 +282,16 @@ def num2cval(tab_b_elem, alter, value_list):
         min_width = 0
         recal_val = []
         recal_max_val = 0
+    elif tab_b_elem.typ == TabBType.STRING:
+        for v in value_list:
+            rval_list.extend(num2rval(tab_b_elem, alter, v))
+        min_width = loc_width = rval_list[1]
+        min_value = 0
+        recal_max_val = -1
+        recal_val = [(v if v != all_one(loc_width) else None)
+                     for v in rval_list[::2]]
+        recal_val = [(v if v is not None else all_one(min_width))
+                     for v in recal_val]
     else:
         for v in value_list:
             rval_list.extend(num2rval(tab_b_elem, alter, v))
@@ -317,6 +302,8 @@ def num2cval(tab_b_elem, alter, value_list):
                      for v in rval_list[::2]]
         recal_max_val = max(recal_val)
         min_width = recal_max_val.bit_length()
+        if recal_max_val == all_one(min_width):
+            min_width += 1
         recal_val = [(v if v is not None else all_one(min_width))
                      for v in recal_val]
 
@@ -336,6 +323,7 @@ def add_val(blob,  value_list, value_list_idx, tab_b_elem=None, alter=None, fix_
         val_buf = value_list
     if fix_width is not None:
         loc_width = fix_width
+        loc_value = val_buf
     elif tab_b_elem is not None and (31000 <= tab_b_elem.descr < 32000):
         # replication/repetition descriptor (group 31) is never altered.
         loc_width = tab_b_elem.width
@@ -344,7 +332,7 @@ def add_val(blob,  value_list, value_list_idx, tab_b_elem=None, alter=None, fix_
         loc_value, loc_width = num2rval(tab_b_elem, alter, val_buf)
     else:
         raise BufrEncodeError("Can't determine width.")
-    if tab_b_elem.typ == TabBelem.STRING:
+    if tab_b_elem is not None and tab_b_elem.typ == TabBType.STRING:
         blob.write_bytes(loc_value, loc_width)
     else:
         blob.write_uint(loc_value, loc_width)
@@ -375,7 +363,7 @@ def add_val_comp(blob, value_list, value_list_idx,  tab_b_elem=None, alter=None,
         loc_width, min_value, min_width, recal_val = num2cval(tab_b_elem, alter, val_l)
     else:
         raise BufrEncodeError("Can't determine width.")
-    if tab_b_elem is not None and tab_b_elem.typ == TabBelem.STRING:
+    if tab_b_elem is not None and tab_b_elem.typ == TabBType.STRING:
         # Special handling for strings.
         blob.write_uint(min_value, loc_width)
         blob.write_uint(min_width // 8, 6)
@@ -400,7 +388,7 @@ def b2s(n):
     return "".join([('1' if n & (m >> i) else '0') for i in range(0, 8 * a)])
 
 
-def dtg(octets, ed=4):
+def str2dtg(octets, ed=4):
     """Interpret octet sequence as datetime object.
 
     Ed.3: year [yy], month, day, hour, minute
@@ -423,6 +411,28 @@ def dtg(octets, ed=4):
     elif ed == 4:
         o, sc = octets2num(octets, o, 1)
     return datetime.datetime(yy, mo, dy, hr, mi, sc)
+
+
+def dtg2str(date_time, ed=4):
+    """Convert datetime list to string.
+
+    :param date_time: date/time list (y, m, d, H, M, S)
+    :return: a string of octets according:
+            BUFR Ed.3: year [yy], month, day, hour, minute
+            BUFR Ed.4: year [yyyy], month, day, hour, minute, second
+    """
+    octets = []
+    yy = date_time[0]
+    if ed == 3:
+        octets.append(chr((yy % 100) & 0xFF))
+    elif ed == 4:
+        octets.append(chr((yy >> 8) & 0xFF))
+        octets.append(chr(yy & 0xFF))
+    for i in date_time[1:5]:
+        octets.append(chr(i & 0xFF))
+    if ed == 4:
+        octets.append(chr(date_time[5] & 0xFF))
+    return "".join(octets)
 
 
 def descr_is_nil(desc):

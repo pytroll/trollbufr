@@ -27,8 +27,8 @@ Created on Nov 18, 2016
 
 @author: amaul
 '''
-from errors import BufrEncodeError
-from functions import dtg as f_dtg
+from errors import SUPPORTED_BUFR_EDITION, BufrEncodeError
+from functions import str2dtg, dtg2str
 
 """
 Section 0
@@ -50,17 +50,17 @@ def decode_sect0(bin_data, offset):
     return bin_data.get_point(), 8, dict(zip(keys[1:], vals[1:]))
 
 
-def encode_sect0(bin_data):
+def encode_sect0(bin_data, edition=4):
     """
     :return: section start offset, meta-dict
     """
-    bin_data.writelist("bytes:4={}, uintbe:24={}, uint:8={}", ("BUFR", 0, 4))
-    return 0, {"edition": 4}
+    bin_data.writelist("bytes:4={}, uintbe:24={}, uint:8={}", ("BUFR", 0, edition))
+    return 0, {"edition": edition}
 
 
 def encode_bufr_size(bin_data):
     """Set total size of BUFR in size filed of section 0."""
-    bin_data.set_uint(len(bin_data)//8, 24, 32)
+    bin_data.set_uint(len(bin_data) // 8, 24, 32)
 
 
 """
@@ -122,7 +122,7 @@ def decode_sect1(bin_data, offset, edition=4):
     }
     vals = bin_data.readlist(key_offs[edition][1])
     rd = dict(zip(key_offs[edition][0], vals))
-    rd["datetime"] = f_dtg(rd["datetime"], ed=edition)
+    rd["datetime"] = str2dtg(rd["datetime"], ed=edition)
     l = rd.pop("length")
     bin_data.reset(offset + l)
     return offset + l, l, rd
@@ -132,26 +132,45 @@ def encode_sect1(bin_data, json_data, edition=4):
     """
     :param json_data: list or tuple with slots 
         (master, center, subcenter, update, sect2, cat, cat_int, cat_loc, mver, lver, 
-        dtg-yy, dtg-mo, dtg-dy, dtg-hh, dtg-mi, dtg-ss)
+        str2dtg-yy, str2dtg-mo, str2dtg-dy, str2dtg-hh, str2dtg-mi, str2dtg-ss)
     :return: section start offset, meta-dict
     """
-    if edition < 4:
-        raise BufrEncodeError()
-    key_offs = ("master", "center", "subcenter", "update", "sect2",
-                "cat", "cat_int", "cat_loc", "mver", "lver",
-                "dtg-yy", "dtg-mo", "dtg-dy", "dtg-hh", "dtg-mi", "dtg-ss")
+    key_offs = {3: (("master", "subcenter", "center",
+                     "update", "sect2",
+                     "cat", "cat_loc",
+                     "mver", "lver"),
+                    "uint:24=18, uint:8={}, uint:8={}, uint:8={},"
+                    + "uint:8={}, bool={}, pad:7, "
+                    + "uint:8={}, uint:8={}, "
+                    + "uint:8={}, uint:8={}"
+                    ),
+                4: (("master", "center", "subcenter",
+                     "update", "sect2",
+                     "cat", "cat_int", "cat_loc",
+                     "mver", "lver"),
+                    "uint:24=22, uint:8={}, uint:16={}, uint:16={}, "
+                    + "uint:8={}, bool={}, pad:7, "
+                    + "uint:8={}, uint:8={}, uint:8={}, "
+                    + "uint:8={}, uint:8={}"
+                    )
+                }
     if isinstance(json_data, dict):
-        ord_val = [json_data[k] for k in key_offs]
+        ord_val = [json_data[k] for k in key_offs[edition][0]]
         rd = json_data
+        rd["datetime"] = dtg2str(json_data["datetime"], edition)
     else:
         ord_val = json_data
-        rd = dict(zip(key_offs, json_data))
+        rd = dict(zip(key_offs[edition][0], json_data[:-6]))
+        rd["datetime"] = dtg2str(json_data[-6:], edition)
     section_start = len(bin_data) // 8
-    bin_data.writelist("uint:24=22, uint:8={}, uint:16={}, uint:16={}, uint:8={}, bool={}, "
-                   + "pad:7, uint:8={}, uint:8={}, uint:8={}, uint:8={}, uint:8={}, "
-                   + "uint:16={}, uint:8={}, uint:8={}, uint:8={}, uint:8={}, uint:8={}",
-                   ord_val)
-    rd["length"] = 22
+    bin_data.writelist(key_offs[edition][1], ord_val)
+    if edition == 3:
+        bin_data.write_bytes(rd["datetime"], 5 * 8)
+        bin_data.write_align(True)
+        rd["length"] = 18
+    else:
+        bin_data.write_bytes(rd["datetime"], 7 * 8)
+        rd["length"] = 22
     return section_start, rd
 
 
@@ -210,7 +229,7 @@ def encode_sect3(bin_data, json_data, edition=4):
     :param json_data: list or tuple with slots (subsets, obs, comp)
     :return: section start offset, meta-dict
     """
-    if edition < 4:
+    if edition not in SUPPORTED_BUFR_EDITION:
         raise BufrEncodeError()
     section_start = len(bin_data)
     bin_data.writelist("uint:24=0, pad:8, uint:16={}, bool={}, bool={}, pad:6", (json_data[:3]))
@@ -219,11 +238,16 @@ def encode_sect3(bin_data, json_data, edition=4):
     for d in json_data[3]:
         bin_data.writelist("uint:2={}, uint:6={}, uint:8={}", (int(d[0:1]), int(d[1:3]), int(d[3:])))
         descr.append(int(d))
+    
+    # TODO: extra bytes for local center use.
+    
+    # Ed.3: pad section to even number of octets.
+    bin_data.write_align(edition == 3)
     rd["descr"] = descr
     s3end = len(bin_data)
     sz = (s3end - section_start) // 8
     bin_data.set_uint(sz, 24, section_start)
-    return section_start, rd
+    return section_start // 8, rd
 
 
 """
@@ -248,16 +272,16 @@ def encode_sect4(bin_data, edition=4):
     """
     :return: section start offset
     """
-    if edition < 4:
+    if edition not in SUPPORTED_BUFR_EDITION:
         raise BufrEncodeError()
     section_start = len(bin_data)
     bin_data.writelist("uint:24={}, pad:8", (0,))
-    return section_start
+    return section_start // 8
 
 
 def encode_sect4_size(bin_data, section_start, section_end):
     """Set size of BUFR bin_data section in size field of section 4."""
-    bin_data.set_uint((section_end - section_start) // 8, 24, section_start)
+    bin_data.set_uint((section_end - section_start), 24, section_start * 8)
 
 
 """
@@ -283,4 +307,4 @@ def encode_sect5(bin_data):
     """
     section_start = len(bin_data)
     bin_data.write_bytes("7777")
-    return section_start
+    return section_start // 8

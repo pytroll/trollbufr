@@ -93,10 +93,10 @@ class Blob(object):
         return self._data.pos - p
 
     def write_align(self, even=False):
-        width = (8 - len(self._data) % 8) & 7
-        if even and (len(self._data) / 8) & 1:
-            width += 8
+        width = (8 - (len(self._data) % 8)) & 7
         self._data += ("uint:{}={}").format(width, 0)
+        if even and (len(self._data) // 8) & 1:
+            self._data += ("uint:{}={}").format(8, 0)
 
     def read_skip(self, width):
         """Skip width bits.
@@ -144,7 +144,7 @@ class Blob(object):
             if value_len > width:
                 value = value[:width]
             elif value_len < width:
-                value += b" " * (width - value_len)
+                value += b"\x00" * (width - value_len)
         self._data += Bits(bytes=value)
         return len(self._data)
 

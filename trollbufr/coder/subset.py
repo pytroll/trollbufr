@@ -32,6 +32,7 @@ import functions as fun
 import operator as op
 from copy import deepcopy
 from errors import BufrDecodeError
+from bufr_types import DescrDataEntry, AlterState
 import logging
 
 logger = logging.getLogger("trollbufr")
@@ -127,7 +128,7 @@ class Subset(object):
             # de : stop when reaching this index
             self._dl, self._di, self._de, mark = stack.pop()
             logger.debug("POP *%d %d..%d (%s)", len(self._dl), self._di, self._de, mark)
-            yield fun.DescrDataEntry(None, mark, None, None)
+            yield DescrDataEntry(None, mark, None, None)
             mark = None
             while self._di < self._de and self._blob.p < self._data_e:
                 """Loop over descriptors in current list"""
@@ -168,7 +169,7 @@ class Subset(object):
                     if self._do_backref_record:
                         self._backref_record.append((elem_b, deepcopy(self._alter)))
                     # This is the main yield
-                    yield fun.DescrDataEntry(elem_b.descr, mark, v, qual)
+                    yield DescrDataEntry(elem_b.descr, mark, v, qual)
 
                 elif fun.descr_is_loop(self._dl[self._di]):
                     """Replication descriptor, loop/iterator, replication or repetition"""
@@ -216,13 +217,13 @@ class Subset(object):
                             logger.debug("PUSH loop -> *%d %d..%d", len(self._dl), self._di, self._di + lm)
                             stack.append((self._dl, self._di, self._di + lm, "RPL %d" % ln))
                             ln -= 1
-                    yield fun.DescrDataEntry(None,
-                                             "%s %06d *%d" % (
-                                                 "REP" if is_repetition else "RPL",
-                                                 loop_cause,
-                                                 loop_count),
-                                             None,
-                                             None)
+                    yield DescrDataEntry(None,
+                                         "%s %06d *%d" % (
+                                             "REP" if is_repetition else "RPL",
+                                             loop_cause,
+                                             loop_count),
+                                         None,
+                                         None)
                     # Causes inner while to end
                     self._di = self._de
 
@@ -287,36 +288,14 @@ class Subset(object):
         self._alter.refval = rl
 
 
-class AlterState(object):
-    def __init__(self):
-        self.reset()
-
-    def __str__(self):
-        return "wnum={} wchr={} refmul={} scale={} assoc={} ieee={} refval={}".format(
-            self.wnum, self.wchr, self.refmul, self.scale, self.assoc[-1], self.ieee, self.refval
-        )
-
-    def reset(self):
-        self.wnum = 0
-        """Add to width, for number data fields."""
-        self.wchr = 0
-        """ Change width for string data fields."""
-        self.refval = {}
-        """ {desc:ref}, dict with new reference values for descriptors."""
-        self.refmul = 1
-        """ Multiplier, for all reference values of following descriptors (207yyy)."""
-        self.scale = 0
-        """ Add to scale, for number data fields."""
-        self.assoc = [0]
-        """ Add width for associated quality field. A stack, always use last value."""
-        self.ieee = 0
-        """ 0|32|64 All numerical values encoded as IEEE floating point number."""
-
-
 class SubsetWriter():
 
-    def __init__(self, tables, blob, descr_list, is_compressed, subset_num, has_backref=False):
+    def __init__(self, tables, blob, descr_list, is_compressed, subset_num, edition=4, has_backref=False):
+        # Apply internal compression
         self.is_compressed = is_compressed
+        # BUFR edition
+        self._edition = edition
+        # Number of subsets
         self.subs_num = subset_num
         # Holds table object
         self._tables = tables
@@ -491,6 +470,11 @@ class SubsetWriter():
                 else:
                     """Invalid descriptor, out of defined range."""
                     raise BufrDecodeError("Descriptor '%06d' invalid!" % self._dl[self._di])
+
+        # Add padding bytes if required
+        if self._edition <= 3:
+            self._blob.write_align(even=False)
+            logger.debug("PADDING -> %d/%d", len(self._blob) // 8, len(self._blob) % 8)
 
     def _write_refval(self):
         """Set new reference values.

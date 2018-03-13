@@ -33,7 +33,7 @@ from argparse import ArgumentParser
 from argparse import RawDescriptionHelpFormatter
 from version import __version__
 from bufr import Bufr
-from coder.tables import TabBelem
+from coder.bufr_types import TabBType
 import load_file
 import coder.load_tables
 
@@ -92,7 +92,7 @@ def read_bufr_data(args):
                                 print()
                                 continue
                             d_name, d_unit, d_typ = tabl.lookup_elem(descr_entry.descr)
-                            if d_typ in (TabBelem.CODE, TabBelem.FLAG):
+                            if d_typ in (TabBType.CODE, TabBType.FLAG):
                                 if descr_entry.value is None:
                                     print("%06d %-40s = Missing value"
                                           % (descr_entry.descr, d_name))
@@ -148,11 +148,11 @@ def get_bufr_json(args):
                 json_bufr.append(["BUFR", bufr._meta["edition"]])
                 # Section 1
                 if bufr._meta["edition"] == 3:
-                    mkeys = ["master", "subcenter", "center", "update", "sect2",
-                             "cat", "cat_loc", "mver", "lver", ]
+                    mkeys = ("master", "subcenter", "center", "update", "sect2",
+                             "cat", "cat_loc", "mver", "lver")
                 else:
-                    mkeys = ["master", "center", "subcenter", "update", "sect2",
-                             "cat", "cat_int", "cat_loc", "mver", "lver", ]
+                    mkeys = ("master", "center", "subcenter", "update", "sect2",
+                             "cat", "cat_int", "cat_loc", "mver", "lver")
                 mval = []
                 for k in mkeys:
                     mval.append(bufr._meta[k])
@@ -199,7 +199,7 @@ def get_bufr_json(args):
                                         stack[-1].append(xpar)
                                     rpl_i += 1
                                     stack.append([])
-                            elif mark_el[0] == "BMP":
+                            elif descr_entry.mark == "BMP DEF":
                                 stack[-1].append([[b] for b in descr_entry.value])
                         else:
                             if isinstance(descr_entry.quality, (int, float)):
@@ -339,7 +339,7 @@ def run(argv=None):
             sys.stderr.write("Unknown operation!")
             return 1
 
-        PROFILE = True
+        PROFILE = False
         if PROFILE:
             import cProfile
             import pstats

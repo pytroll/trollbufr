@@ -30,7 +30,7 @@ import os
 import re
 
 from errors import BufrTableError
-from tables import TabBelem
+from tables import TabBElem
 
 logger = logging.getLogger("trollbufr")
 
@@ -117,7 +117,7 @@ def load_tab_b(tables, fname):
                 if m is None:
                     continue
                 # descr, typ, unit, abbrev, full_name, scale, refval, width
-                e = TabBelem(int(m.group(1)), m.group(2), m.group(3), None, m.group(7),
+                e = TabBElem(int(m.group(1)), m.group(2), m.group(3), None, m.group(7),
                              int(m.group(4)), int(m.group(5)), int(m.group(6)))
                 tables.tab_b[int(m.group(1))] = e
     except StandardError as err:

@@ -28,6 +28,7 @@ Created on Mar 31, 2017
 """
 import functions as fun
 from errors import BufrDecodeError
+from bufr_types import DescrDataEntry
 import logging
 
 logger = logging.getLogger("trollbufr")
@@ -184,7 +185,7 @@ def fun_05_r(subset, descr):
     v = fun.rval2str(foo)
     logger.debug("OP text -> '%s'", v)
     # Special rval for plain character
-    l_rval = fun.DescrDataEntry(descr, None, v, None)
+    l_rval = DescrDataEntry(descr, None, v, None)
     return l_rval
 
 
@@ -239,7 +240,7 @@ def fun_22_r(subset, descr):
     logger.debug("OP %d", descr)
     en = subset._tables.tab_c.get(descr, ("Operator",))
     # An additional rval for operators where no further action is required
-    l_rval = fun.DescrDataEntry(descr, "OPR", en[0], None)
+    l_rval = DescrDataEntry(descr, "OPR", en[0], None)
     return l_rval
 
 
@@ -274,7 +275,7 @@ def fun_statistic_read(subset, descr, an):
         """Statistical values follow."""
         en = subset._tables.tab_c.get(descr, ("Operator",))
         # Local return value: long name of this operator.
-        l_rval = fun.DescrDataEntry(descr, "OPR", en[0], None)
+        l_rval = DescrDataEntry(descr, "OPR", en[0], None)
 
         subset._backref_stack = [subset._backref_record[i]
                                  for i in range(len(subset._bitmap) - 1, 0, -1)
@@ -288,7 +289,7 @@ def fun_statistic_read(subset, descr, an):
                            tab_b_elem=bar[0],
                            alter=bar[1])
         v = fun.rval2num(bar[0], bar[1], foo)
-        l_rval = fun.DescrDataEntry(descr, None, v, bar[0])
+        l_rval = DescrDataEntry(descr, None, v, bar[0])
     else:
         raise BufrDecodeError("Unknown operator '%d'!", descr)
     return l_rval
@@ -301,7 +302,7 @@ def fun_statistic_write(subset, descr, an):
         """Statistical values follow."""
         en = subset._tables.tab_c.get(descr, ("Operator",))
         # Local return value: long name of this operator.
-        l_rval = fun.DescrDataEntry(descr, "OPR", en[0], None)
+        l_rval = DescrDataEntry(descr, "OPR", en[0], None)
 
         subset._backref_stack = [subset._backref_record[i]
                                  for i in range(len(subset._bitmap) - 1, 0, -1)
@@ -315,7 +316,7 @@ def fun_statistic_write(subset, descr, an):
                            tab_b_elem=bar[0],
                            alter=bar[1])
         v = fun.rval2num(bar[0], bar[1], foo)
-        l_rval = fun.DescrDataEntry(descr, None, v, bar[0])
+        l_rval = DescrDataEntry(descr, None, v, bar[0])
     else:
         raise BufrDecodeError("Unknown operator '%d'!", descr)
     return l_rval
@@ -345,23 +346,24 @@ def fun_36_r(subset, descr):
                                    fix_width=1)
                       for _ in range(an)]
     subset._do_backref_record = False
-    l_rval = fun.DescrDataEntry(descr, "BMP", subset._bitmap, None)
+    l_rval = DescrDataEntry(descr, "BMP DEF", subset._bitmap, None)
     return l_rval
 
 
 def fun_37_r(subset, descr):
     """Use (237000) or cancel use (237255) defined data present bit-map."""
     if descr == 237000:
-        l_rval = fun.DescrDataEntry(descr, "BMP", subset._bitmap, None)
+        l_rval = DescrDataEntry(descr, "BMP USE", subset._bitmap, None)
     elif descr == 237255:
         subset._bitmap = []
     return l_rval
 
 
-def fun_37_w(subset, descr):
+def fun_37_w(subset, _):
     """Skip a bitmap list if one is present in the json data set."""
-    if isinstance(subset._vl[subset._vi], (list, tuple)):
-        pass
+    # FIXME: the isinstance propably works only in compressed bufr.
+    if isinstance(subset._vl[0][subset._vi], (list, tuple)):
+        subset._vi += 1
     return None
 
 

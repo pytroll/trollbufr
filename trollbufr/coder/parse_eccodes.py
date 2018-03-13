@@ -31,7 +31,7 @@ import os
 import re
 
 from errors import BufrTableError
-from tables import TabBelem
+from tables import TabBElem
 
 logger = logging.getLogger("trollbufr")
 
@@ -119,7 +119,7 @@ def load_tab_b(tables, fname):
 #                     t = "flag"
             else:
                 t = el[2]
-            e = TabBelem(int(el[0]), t, el[4], el[1], el[3], int(el[5]), int(el[6]), int(el[7]))
+            e = TabBElem(int(el[0]), t, el[4], el[1], el[3], int(el[5]), int(el[6]), int(el[7]))
             tables.tab_b[int(el[0])] = e
     return True
 

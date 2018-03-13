@@ -36,13 +36,11 @@ from coder.subset import Subset, SubsetWriter
 from coder.bdata import Blob
 from coder.functions import (descr_is_data, descr_is_loop, descr_is_oper,
                              descr_is_seq, descr_is_nil, get_descr_list)
-from coder.errors import BufrDecodeError, BufrDecodeWarning, BufrTableError
+from coder.errors import (SUPPORTED_BUFR_EDITION, BufrDecodeError,
+                          BufrDecodeWarning, BufrTableError)
 import logging
 
 logger = logging.getLogger("trollbufr")
-
-# List of supported BUFR editions
-SUPPORTED_BUFR_EDITION = (3, 4)
 
 
 class Bufr(object):
@@ -85,6 +83,9 @@ class Bufr(object):
     def get_meta(self):
         return self._meta
 
+    def get_supported_edition(self):
+        return SUPPORTED_BUFR_EDITION
+
     def get_meta_str(self):
         """All meta-information from section 1+3 as multi-line string"""
         s = []
@@ -106,7 +107,7 @@ class Bufr(object):
                       cs))
         s.append(t % ("Update sequence number",
                       self._meta.get("update", "---")))
-        s.append(t % ("Type of bin_data",
+        s.append(t % ("Type of data",
                       ("observed" if self._meta.get("obs", 0) else "other")))
         dc = self._meta.get("cat",
                             "---")
@@ -114,9 +115,9 @@ class Bufr(object):
             dc = self._tables.lookup_common(dc)
         s.append(t % ("Data category",
                       dc))
-        s.append(t % ("International bin_data sub-category",
+        s.append(t % ("International data sub-category",
                       self._meta.get("cat_int", "---")))
-        s.append(t % ("Local bin_data sub-category",
+        s.append(t % ("Local data sub-category",
                       self._meta.get("cat_loc", "---")))
         s.append(t % ("Version number of master table",
                       self._meta.get("mver", "---")))
@@ -128,7 +129,7 @@ class Bufr(object):
                       ("yes" if self._meta.get("sect2", False) else "no")))
         s.append(t % ("Compression",
                       ("yes" if self._meta.get("comp", False) else "no")))
-        s.append(t % ("Number of bin_data subsets",
+        s.append(t % ("Number of data subsets",
                       self._meta.get("subsets", "---")))
         return "\n".join(s)
 
@@ -339,10 +340,17 @@ class Bufr(object):
         sect_start = [0] * 6
         bin_data = Blob()
         sect_i = 0
-        sect_start[sect_i], sect_meta = sect.encode_sect0(bin_data)
+        sect_start[sect_i], sect_meta = sect.encode_sect0(bin_data, json_data[sect_i][1])
+        logger.debug("SECT %d start:%d  %s", sect_i + 1, sect_start[sect_i], sect_meta)
         self._meta.update(sect_meta)
+        self._edition = sect_meta['edition']
+        if self._edition not in SUPPORTED_BUFR_EDITION:
+            raise BufrDecodeError("BUFR edition %d not supported" % self._edition)
         sect_i += 1
-        sect_start[sect_i], sect_meta = sect.encode_sect1(bin_data, json_data[sect_i])
+        sect_start[sect_i], sect_meta = sect.encode_sect1(bin_data,
+                                                          json_data[sect_i],
+                                                          self._edition)
+        logger.debug("SECT %d start:%d  %s", sect_i + 1, sect_start[sect_i], sect_meta)
         self._meta.update(sect_meta)
         if load_tables and not self._tables:
             try:
@@ -350,19 +358,33 @@ class Bufr(object):
             except StandardError or Warning as exc:
                 raise exc
         sect_i += 1
-        sect_start[sect_i], sect_meta = sect.encode_sect3(bin_data, json_data[sect_i])
+        sect_start[sect_i], sect_meta = sect.encode_sect3(bin_data,
+                                                          json_data[sect_i],
+                                                          self._edition)
+        logger.debug("SECT %d start:%d  %s", sect_i + 1, sect_start[sect_i], sect_meta)
         self._meta.update(sect_meta)
         self._subsets = sect_meta['subsets']
         self._compressed = sect_meta['comp']
         self._desc = sect_meta['descr']
         sect_i += 1
-        subset_writer = SubsetWriter(self._tables, bin_data, self._desc, self._compressed, self._subsets)
-        sect_start[sect_i] = sect.encode_sect4(bin_data, json_data[sect_i])
+        subset_writer = SubsetWriter(self._tables,
+                                     bin_data,
+                                     self._desc,
+                                     self._compressed,
+                                     self._subsets,
+                                     edition=self._edition)
+        sect_start[sect_i] = sect.encode_sect4(bin_data,
+                                               self._edition)
+        logger.debug("SECT %d start:%d", sect_i + 1, sect_start[sect_i])
         subset_writer.process(json_data[sect_i])
-        bin_data.write_align()
+        # Pad last octet if needed, align to even octet number if Ed.3
+        bin_data.write_align(self._edition == 3)
         sect_i += 1
         sect_start[sect_i] = sect.encode_sect5(bin_data)
-        sect.encode_sect4_size(bin_data, sect_start[sect_i - 1], sect_start[sect_i])
+        logger.debug("SECT %d start:%d", sect_i + 1, sect_start[sect_i])
+        sect.encode_sect4_size(bin_data,
+                               sect_start[sect_i - 1],
+                               sect_start[sect_i])
         sect.encode_bufr_size(bin_data)
         return bin_data.get_bytes()
 

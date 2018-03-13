@@ -25,6 +25,7 @@ Created on Sep 15, 2016
 
 @author: amaul
 '''
+from bufr_types import TabBType
 
 import logging
 logger = logging.getLogger("trollbufr")
@@ -54,7 +55,7 @@ class Tables(object):
         self._centre_sub = subcentre
         # { code -> meaning }
         self.tab_a = dict()
-        # { desc -> TabBelem }
+        # { desc -> TabBElem }
         self.tab_b = dict()
         # { desc -> (name, definition) }
         self.tab_c = dict()
@@ -81,10 +82,10 @@ class Tables(object):
             b = self.tab_b[descr]
             if self.tab_cf.get(descr) is None:
                 return sval
-            if b.typ == TabBelem.CODE:
+            if b.typ == TabBType.CODE:
                 sval = self.tab_cf[descr].get(val)
                 logger.debug("CODE %06d: %d -> %s", descr, val, sval)
-            elif b.typ == TabBelem.FLAG:
+            elif b.typ == TabBType.FLAG:
                 vl = []
                 for k, v in self.tab_cf[descr].items():
                     if val & (1 << (b.width - k)):
@@ -121,31 +122,25 @@ class Tables(object):
         return a or "UNKN"
 
 
-class TabBelem(object):
-    NUMERIC = 0
-    LONG = 1
-    DOUBLE = 2
-    CODE = 3
-    FLAG = 4
-    STRING = 5
+class TabBElem(object):
 
     def __init__(self, descr, typ_str, unit, abbrev, full_name, scale, refval, width):
-        type_list = {"A": TabBelem.STRING,
-                     "N": TabBelem.NUMERIC,
-                     "C": TabBelem.CODE,
-                     "F": TabBelem.FLAG,
-                     "long": TabBelem.LONG,
-                     "double": TabBelem.DOUBLE,
-                     "code": TabBelem.CODE,
-                     "flag": TabBelem.FLAG,
-                     "string": TabBelem.STRING}
+        type_list = {"A": TabBType.STRING,
+                     "N": TabBType.NUMERIC,
+                     "C": TabBType.CODE,
+                     "F": TabBType.FLAG,
+                     "long": TabBType.LONG,
+                     "double": TabBType.DOUBLE,
+                     "code": TabBType.CODE,
+                     "flag": TabBType.FLAG,
+                     "string": TabBType.STRING}
         self.descr = descr
         self.typ = type_list.get(typ_str, None)
-        if self.typ == TabBelem.NUMERIC:
+        if self.typ == TabBType.NUMERIC:
             if scale > 0:
-                self.typ = TabBelem.DOUBLE
+                self.typ = TabBType.DOUBLE
             else:
-                self.typ = TabBelem.LONG
+                self.typ = TabBType.LONG
         elif self.typ is None:
             raise BaseException("Invalid entry typ_str '%s'" % typ_str)
         self.unit = unit

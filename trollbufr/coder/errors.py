@@ -25,6 +25,9 @@ Created on Nov 4, 2016
 @author: amaul
 '''
 
+SUPPORTED_BUFR_EDITION = (3, 4)
+"""List of supported BUFR editions."""
+
 
 class BufrDecodeError(StandardError):
     '''Error class, raised if anything prevents further decoding'''
