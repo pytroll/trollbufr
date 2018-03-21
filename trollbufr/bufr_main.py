@@ -55,7 +55,7 @@ def read_bufr_data(args):
             i += 1
             print("HEADER\t%s" % header)
             try:
-                bufr.decode(blob, load_tables=False)
+                bufr.decode_meta(blob, load_tables=False)
                 tabl = bufr.load_tables()
                 print("META:\n%s" % bufr.get_meta_str())
                 for report in bufr.next_subset():
@@ -141,75 +141,14 @@ def get_bufr_json(args):
             bufr_i += 1
             if args.bulletin is not None and bufr_i != args.bulletin:
                 continue
-            json_bufr = []
             try:
-                bufr.decode(blob, True)
-                # Section 0
-                json_bufr.append(["BUFR", bufr._meta["edition"]])
-                # Section 1
-                if bufr._meta["edition"] == 3:
-                    mkeys = ("master", "subcenter", "center", "update", "sect2",
-                             "cat", "cat_loc", "mver", "lver")
-                else:
-                    mkeys = ("master", "center", "subcenter", "update", "sect2",
-                             "cat", "cat_int", "cat_loc", "mver", "lver")
-                mval = []
-                for k in mkeys:
-                    mval.append(bufr._meta[k])
-                mval.extend((bufr._meta["datetime"].year, bufr._meta["datetime"].month,
-                             bufr._meta["datetime"].day, bufr._meta["datetime"].hour,
-                             bufr._meta["datetime"].minute, bufr._meta["datetime"].second)
-                            )
-                json_bufr.append(mval)
-                # Section 3
-                sect_buf = []
-                sect_buf.extend([bufr._subsets, bufr._meta["obs"], bufr._meta["comp"]])
-                mval = []
-                for k in bufr._desc:
-                    mval.append("%06d" % k)
-                sect_buf.append(mval)
-                json_bufr.append(sect_buf)
-                # Section 4
-                stack = []
-                for report in bufr.next_subset():
-                    stack.append([])
-                    rpl_i = 0
-                    for descr_entry in report.next_data():
-                        if descr_entry.mark is not None:
-                            mark_el = descr_entry.mark.split(" ")
-                            if mark_el[0] in ("RPL", "REP"):
-                                if len(mark_el) == 3:
-                                    # Replication starts
-                                    stack.append([])
-                                    rpl_i = 0
-                                elif mark_el[1] == "END":
-                                    # Replication ends
-                                    xpar = stack.pop()
-                                    stack[-1].append(xpar)
-                                    xpar = stack.pop()
-                                    stack[-1].append(xpar)
-                                elif mark_el[1] == "NIL":
-                                    # No iterations
-                                    xpar = stack.pop()
-                                    stack[-1].append(xpar)
-                                else:
-                                    # For each iteration:
-                                    if rpl_i:
-                                        xpar = stack.pop()
-                                        stack[-1].append(xpar)
-                                    rpl_i += 1
-                                    stack.append([])
-                            elif descr_entry.mark == "BMP DEF":
-                                stack[-1].append([[b] for b in descr_entry.value])
-                        else:
-                            if isinstance(descr_entry.quality, (int, float)):
-                                stack[-1].append(descr_entry.quality)
-                            stack[-1].append(descr_entry.value)
-                json_bufr.append(stack)
-                json_bufr.append(["7777"])
+                json_bufr = bufr.decode(blob, load_tables=True)
             except StandardError as e:
                 logger.exception(e)
-            json_data.append({"heading": header, "bufr": json_bufr})
+            json_data.append({"heading": header,
+                              "file": fn,
+                              "index": bufr_i,
+                              "bufr": json_bufr})
     return json_data
 
 
@@ -227,7 +166,7 @@ def read_bufr_desc(args):
             print("HEADER\t%s" % header)
             try:
                 bufr = Bufr(args.tables_type, args.tables_path)
-                bufr.decode(blob, load_tables=(not args.sparse))
+                bufr.decode_meta(blob, load_tables=(not args.sparse))
                 print("META\n%s" % bufr.get_meta_str())
                 if args.sparse:
                     d = bufr.get_descr_short()

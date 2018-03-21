@@ -257,12 +257,12 @@ class Bufr(object):
         logger.info("BUFR END")
         raise StopIteration
 
-    def decode(self, bin_data, load_tables=True):
-        """Decodes all meta-bin_data of the BUFR.
+    def decode_meta(self, bin_data, load_tables=True):
+        """Decodes all meta-data of the BUFR.
 
-        This function prepares the iterators for reading bin_data.
+        This function prepares the iterators for reading data.
 
-        :param bin_data: Blob: bin_data object with complete BUFR.
+        :param bin_data: Blob: data object with complete BUFR.
         :param load_tables: bool: automatically load load_tables.
         :raise BufrDecodeWarning: recoverable error.
         :raise BufrDecodeError: error that stops decoding.
@@ -326,10 +326,93 @@ class Bufr(object):
 
         return self._meta
 
+    def decode(self, bin_data, load_tables=True):
+        """Decodes the BUFR into a JSON compatible data object.
+
+        The created JSON compatible data object is a list of the BUFR sections,
+        where each section itself is a list of the values, in the same order as
+        stored in a BUFR.
+
+        :param bin_data: Blob: data object with complete BUFR.
+        :param load_tables: bool: automatically load load_tables.
+        :raise BufrDecodeWarning: recoverable error.
+        :raise BufrDecodeError: error that stops decoding.
+        """
+        self.decode_meta(bin_data, load_tables)
+        json_bufr = []
+        # Section 0
+        json_bufr.append(["BUFR", self._meta["edition"]])
+        # Section 1
+        if self._meta["edition"] == 3:
+            mkeys = ("master", "subcenter", "center", "update", "sect2",
+                     "cat", "cat_loc", "mver", "lver")
+        else:
+            mkeys = ("master", "center", "subcenter", "update", "sect2",
+                     "cat", "cat_int", "cat_loc", "mver", "lver")
+        mval = []
+        for k in mkeys:
+            mval.append(self._meta[k])
+        mval.extend((self._meta["datetime"].year, self._meta["datetime"].month,
+                     self._meta["datetime"].day, self._meta["datetime"].hour,
+                     self._meta["datetime"].minute, self._meta["datetime"].second)
+                    )
+        json_bufr.append(mval)
+        # Section 3
+        sect_buf = []
+        sect_buf.extend([self._subsets, self._meta["obs"], self._meta["comp"]])
+        mval = []
+        for k in self._desc:
+            mval.append("%06d" % k)
+        sect_buf.append(mval)
+        json_bufr.append(sect_buf)
+        # Section 4
+        stack = []
+        for report in self.next_subset():
+            stack.append([])
+            rpl_i = 0
+            for descr_entry in report.next_data():
+                if descr_entry.mark is not None:
+                    mark_el = descr_entry.mark.split(" ")
+                    if mark_el[0] in ("RPL", "REP"):
+                        if len(mark_el) == 3:
+                            # Replication starts
+                            stack.append([])
+                            rpl_i = 0
+                        elif mark_el[1] == "END":
+                            # Replication ends
+                            xpar = stack.pop()
+                            stack[-1].append(xpar)
+                            xpar = stack.pop()
+                            stack[-1].append(xpar)
+                        elif mark_el[1] == "NIL":
+                            # No iterations
+                            xpar = stack.pop()
+                            stack[-1].append(xpar)
+                        else:
+                            # For each iteration:
+                            if rpl_i:
+                                xpar = stack.pop()
+                                stack[-1].append(xpar)
+                            rpl_i += 1
+                            stack.append([])
+                    elif descr_entry.mark == "BMP DEF":
+                        stack[-1].append([[b] for b in descr_entry.value])
+                else:
+                    if isinstance(descr_entry.quality, (int, float)):
+                        stack[-1].append(descr_entry.quality)
+                    stack[-1].append(descr_entry.value)
+        json_bufr.append(stack)
+        json_bufr.append(["7777"])
+        return json_bufr
+
     def encode(self, json_data, load_tables=True):
         """Encodes the JSON object as BUFR.
 
-        This function prepares the iterators for reading bin_data.
+        This function creates a BUFR as byte array from the JSON data object.
+
+        The structure of the JSON object is of type "list" and resembles the
+        logical structure of a BUFR, where each section itself is a list of
+        values in the same order as in a BUFR.
 
         :param json_data: JSON object.
         :param load_tables: automatically load tables
