@@ -335,6 +335,7 @@ class Bufr(object):
 
         :param bin_data: Blob: data object with complete BUFR.
         :param load_tables: bool: automatically load load_tables.
+        :return: JSON object
         :raise BufrDecodeWarning: recoverable error.
         :raise BufrDecodeError: error that stops decoding.
         """
@@ -416,7 +417,7 @@ class Bufr(object):
 
         :param json_data: JSON object.
         :param load_tables: automatically load tables
-        :return: AHL, BUFR : abbrev. heading line + a byte array object
+        :return: BUFR, a byte array object
         :raise BufrDecodeWarning: recoverable error.
         :raise BufrDecodeError: error that stops decoding.
         """
