@@ -29,7 +29,7 @@ import sys
 
 version = imp.load_source("trollbufr.version", "trollbufr/version.py")
 
-requires = ["bitstring", "six", "json"]
+requires = ["bitstring"]
 
 if sys.version_info < (2, 7):
     requires.append("argparse")
