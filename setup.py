@@ -29,7 +29,7 @@ import sys
 
 version = imp.load_source("trollbufr.version", "trollbufr/version.py")
 
-requires = []
+requires = ["bitstring", "six", "json"]
 
 if sys.version_info < (2, 7):
     requires.append("argparse")
@@ -44,7 +44,9 @@ setup(name="trollbufr",
                    "License :: OSI Approved :: GNU General Public License v3 " +
                    "or later (GPLv3+)",
                    "Operating System :: OS Independent",
-                   "Programming Language :: Python",
+                   "Programming Language :: Python :: 2",
+                   "Programming Language :: Python :: 2.6",
+                   "Programming Language :: Python :: 2.7",
                    "Topic :: Scientific/Engineering",
                    "Topic :: Scientific/Engineering :: Geo-Science"],
       test_suite="bufr.tests.suite",
@@ -53,5 +55,6 @@ setup(name="trollbufr",
                               "trollbufr_update = trollbufr.update:run"]},
       packages=["trollbufr", "trollbufr.coder"],
       install_requires=requires,
+      python_requires=">=2.6, <3",
       zip_safe=False,
       )
