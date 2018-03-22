@@ -286,7 +286,7 @@ def num2cval(tab_b_elem, alter, value_list):
         for v in value_list:
             rval_list.extend(num2rval(tab_b_elem, alter, v))
         min_width = loc_width = rval_list[1]
-        min_value = 0
+        min_value = ""
         recal_max_val = -1
         recal_val = [(v if v != all_one(loc_width) else None)
                      for v in rval_list[::2]]
@@ -365,7 +365,7 @@ def add_val_comp(blob, value_list, value_list_idx,  tab_b_elem=None, alter=None,
         raise BufrEncodeError("Can't determine width.")
     if tab_b_elem is not None and tab_b_elem.typ == TabBType.STRING:
         # Special handling for strings.
-        blob.write_uint(min_value, loc_width)
+        blob.write_bytes(min_value, loc_width)
         blob.write_uint(min_width // 8, 6)
         for value in recal_val:
             blob.write_bytes(value, min_width)
