@@ -32,7 +32,7 @@ from tables import Tables
 
 logger = logging.getLogger("trollbufr")
 
-MODULE_PATTERN = "trollbufr.tab.parse_%s"
+MODULE_PATTERN = "trollbufr.coder.parse_%s"
 
 BUFR_TABLES_DEFAULT = "%s/.local/share/trollbufr" % (os.getenv('HOME'))
 

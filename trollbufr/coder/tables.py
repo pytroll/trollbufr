@@ -25,6 +25,7 @@ Created on Sep 15, 2016
 
 @author: amaul
 '''
+from bufr_types import TabBType
 
 import logging
 logger = logging.getLogger("trollbufr")
@@ -34,26 +35,6 @@ class Tables(object):
     '''
     classdocs
     '''
-    # TODO: move class attr to init, make them instance attr. Or it won't pickle.
-
-    # { code -> meaning }
-    tab_a = dict()
-
-    # { desc -> TabBelem }
-    tab_b = dict()
-
-    # { desc -> (name, definition) }
-    tab_c = dict()
-
-    # { desc -> (desc, ...) }
-    tab_d = dict()
-
-    # { desc -> {num:value} }
-    tab_cf = dict()
-
-    # Recocnized types
-    type_list = ("double", "long", "string", "code", "flag")
-
     # Master table
     _master = 0
     # Version master table
@@ -72,6 +53,16 @@ class Tables(object):
         self._vers_local = local_vers
         self._centre = centre
         self._centre_sub = subcentre
+        # { code -> meaning }
+        self.tab_a = dict()
+        # { desc -> TabBElem }
+        self.tab_b = dict()
+        # { desc -> (name, definition) }
+        self.tab_c = dict()
+        # { desc -> (desc, ...) }
+        self.tab_d = dict()
+        # { desc -> {num:value} }
+        self.tab_cf = dict()
 
     def differs(self, master, master_vers, local_vers, centre, subcentre):
         """Test if the version etc. numbers differ from the table currently loaded"""
@@ -91,10 +82,10 @@ class Tables(object):
             b = self.tab_b[descr]
             if self.tab_cf.get(descr) is None:
                 return sval
-            if b.typ == "code":
+            if b.typ == TabBType.CODE:
                 sval = self.tab_cf[descr].get(val)
                 logger.debug("CODE %06d: %d -> %s", descr, val, sval)
-            elif b.typ == "flag":
+            elif b.typ == TabBType.FLAG:
                 vl = []
                 for k, v in self.tab_cf[descr].items():
                     if val & (1 << (b.width - k)):
@@ -104,25 +95,25 @@ class Tables(object):
         return sval or "N/A"
 
     def lookup_elem(self, descr):
-        """Returns name und unit associated with table B or C descriptor."""
+        """Returns name, unit, and type associated with table B or C descriptor."""
         if descr < 100000:
             b = self.tab_b.get(descr)
             if b is None:
-                return ("UNKN", "")
+                return ("UNKN", "", None)
             if b.abbrev is not None:
-                return (b.abbrev, b.unit)
+                return (b.abbrev, b.unit, b.typ)
             else:
-                return (b.full_name, b.unit)
+                return (b.full_name, b.unit, b.typ)
         elif 200000 < descr < 300000:
             if descr in self.tab_c:
                 c = self.tab_c.get(descr)
             else:
                 c = self.tab_c.get(descr // 1000)
             if c is None:
-                return ("UNKN", "")
-            return (c[0], "")
+                return ("UNKN", "", "oper")
+            return (c[0], "", "oper")
         else:
-            return (None, None)
+            return (None, None, None)
 
     def lookup_common(self, val):
         """Returns meaning for data category value."""
@@ -131,31 +122,27 @@ class Tables(object):
         return a or "UNKN"
 
 
-class TabBelem(object):
-    descr = None
-    typ = None
-    unit = None
-    abbrev = None
-    full_name = None
-    scale = 0
-    refval = 0
-    width = 0
+class TabBElem(object):
 
-    def __init__(self, descr, typ, unit, abbrev, full_name, scale, refval, width):
-        _type_dwd = {"A": 'string', "N": "???", "C": "code", "F": "flag"}
+    def __init__(self, descr, typ_str, unit, abbrev, full_name, scale, refval, width):
+        type_list = {"A": TabBType.STRING,
+                     "N": TabBType.NUMERIC,
+                     "C": TabBType.CODE,
+                     "F": TabBType.FLAG,
+                     "long": TabBType.LONG,
+                     "double": TabBType.DOUBLE,
+                     "code": TabBType.CODE,
+                     "flag": TabBType.FLAG,
+                     "string": TabBType.STRING}
         self.descr = descr
-        if typ in _type_dwd:
-            if typ == "N":
-                if scale > 0:
-                    self.typ = "double"
-                else:
-                    self.typ = "long"
+        self.typ = type_list.get(typ_str, None)
+        if self.typ == TabBType.NUMERIC:
+            if scale > 0:
+                self.typ = TabBType.DOUBLE
             else:
-                self.typ = _type_dwd[typ]
-        else:
-            self.typ = typ
-        if self.typ not in Tables.type_list:
-            raise BaseException("Invalid entry typ '%s'" % self.typ)
+                self.typ = TabBType.LONG
+        elif self.typ is None:
+            raise BaseException("Invalid entry typ_str '%s'" % typ_str)
         self.unit = unit
         self.abbrev = abbrev
         self.full_name = full_name

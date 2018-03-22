@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2016 Alexander Maul
+# Copyright (c) 2016-2018 Alexander Maul
 #
 # Author(s):
 #
@@ -19,47 +19,47 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 trollbufr.bufr.Bufr
 ===================
 *The* class holding, decoding, and reading a BUFR.
 
 After decoding the meta-information use the iterator over the subsets.
 
-Each subset is held in an instance of class :class:`~trollbufr.read.Subset`, which has the iterator
-function `next_data()` to iterate over all data elements in this subset.
-'''
-import tab.load_tables
-import read.bufr_sect as sect
-from read.subset import Subset
-from read.functions import (is_data, is_loop, is_oper, is_seq, is_nil)
-from read.errors import BufrDecodeError, BufrDecodeWarning
-from tab.errors import BufrTableError
+Each subset is held in an instance of class :class:`~trollbufr.read.Subset`, 
+which has the iterator function `next_data()` to iterate over all bin_data elements
+in this subset.
+"""
+import coder.load_tables
+import coder.bufr_sect as sect
+from coder.subset import Subset, SubsetWriter
+from coder.bdata import Blob
+from coder.functions import (descr_is_data, descr_is_loop, descr_is_oper,
+                             descr_is_seq, descr_is_nil, get_descr_list)
+from coder.errors import (SUPPORTED_BUFR_EDITION, BufrDecodeError,
+                          BufrDecodeWarning, BufrTableError)
 import logging
 
 logger = logging.getLogger("trollbufr")
 
-# List of supported BUFR editions
-SUPPORTED_BUFR_EDITION = (3, 4)
-
 
 class Bufr(object):
     """Holds and decodes a BUFR"""
-    # Holds byte array with bufr
+    # Holds byte-array-like object with bufr
     _blob = None
-    # Meta data
+    # Meta bin_data
     _meta = {}
     # Edition
     _edition = 4
     # Number of subsets
     _subsets = -1
-    # Compressed data
+    # Compressed bin_data
     _compressed = False
     # Initial list of descr (from Sect3)
     _desc = []
-    # Start of data
+    # Start of bin_data
     _data_s = -1
-    # End of data
+    # End of bin_data
     _data_e = -1
     # Path to tables
     _tab_p = None
@@ -68,12 +68,14 @@ class Bufr(object):
     # Holds table object
     _tables = None
 
-    def __init__(self, tab_fmt, tab_path, data=None):
+    def __init__(self, tab_fmt, tab_path, bin_data=None, json_obj=None):
         self._tab_p = tab_path
         self._tab_f = tab_fmt
-        if data is not None:
-            self._blob = data
-            self._meta = self.decode(data)
+        if bin_data is not None:
+            self._blob = bin_data
+            self._meta = self.decode(bin_data)
+        elif json_obj is not None:
+            self._meta = self.encode(json_obj)
 
     def get_tables(self):
         return self._tables
@@ -81,43 +83,69 @@ class Bufr(object):
     def get_meta(self):
         return self._meta
 
+    def get_supported_edition(self):
+        return SUPPORTED_BUFR_EDITION
+
     def get_meta_str(self):
         """All meta-information from section 1+3 as multi-line string"""
         s = []
         t = "%-32s: %s"
-        s.append(t % ("Edition", self._meta.get("edition", "---")))
-        s.append(t % ("Master-table", self._meta.get("master", "---")))
-        cc = self._meta.get("center", "---")
-        cs = self._meta.get("subcenter", "---")
+        s.append(t % ("Edition",
+                      self._meta.get("edition", "---")))
+        s.append(t % ("Master-table",
+                      self._meta.get("master", "---")))
+        cc = self._meta.get("center",
+                            "---")
+        cs = self._meta.get("subcenter",
+                            "---")
         if self._tables is not None:
             cc = self._tables.lookup_codeflag(1033, cc)
             cs = self._tables.lookup_codeflag(1034, cs)
-        s.append(t % ("Centre", cc))
-        s.append(t % ("Sub-Centre", cs))
-        s.append(t % ("Update sequence number", self._meta.get("update", "---")))
-        s.append(t % ("Type of data", ("observed" if self._meta.get("obs", 0) else "other")))
-        dc = self._meta.get("cat", "---")
+        s.append(t % ("Centre",
+                      cc))
+        s.append(t % ("Sub-Centre",
+                      cs))
+        s.append(t % ("Update sequence number",
+                      self._meta.get("update", "---")))
+        s.append(t % ("Type of data",
+                      ("observed" if self._meta.get("obs", 0) else "other")))
+        dc = self._meta.get("cat",
+                            "---")
         if self._tables is not None:
             dc = self._tables.lookup_common(dc)
-        s.append(t % ("Data category", dc))
-        s.append(t % ("International data sub-category", self._meta.get("cat_int", "---")))
-        s.append(t % ("Local data sub-category", self._meta.get("cat_loc", "---")))
-        s.append(t % ("Version number of master table", self._meta.get("mver", "---")))
-        s.append(t % ("Version number of local table", self._meta.get("lver", "---")))
-        s.append(t % ("Most typical time", self._meta.get("datetime", "---")))
-        s.append(t % ("Optional section present", ("yes" if self._meta.get("sect2", False) else "no")))
-        s.append(t % ("Compression", ("yes" if self._meta.get("comp", False) else "no")))
-        s.append(t % ("Number of data subsets", self._meta.get("subsets", "---")))
+        s.append(t % ("Data category",
+                      dc))
+        s.append(t % ("International data sub-category",
+                      self._meta.get("cat_int", "---")))
+        s.append(t % ("Local data sub-category",
+                      self._meta.get("cat_loc", "---")))
+        s.append(t % ("Version number of master table",
+                      self._meta.get("mver", "---")))
+        s.append(t % ("Version number of local table",
+                      self._meta.get("lver", "---")))
+        s.append(t % ("Most typical time",
+                      self._meta.get("datetime", "---")))
+        s.append(t % ("Optional section present",
+                      ("yes" if self._meta.get("sect2", False) else "no")))
+        s.append(t % ("Compression",
+                      ("yes" if self._meta.get("comp", False) else "no")))
+        s.append(t % ("Number of data subsets",
+                      self._meta.get("subsets", "---")))
         return "\n".join(s)
 
     def load_tables(self):
         """Load all tables referenced by the BUFR"""
         if not len(self._meta):
             raise BufrTableError("No table loaded!")
-        self._tables = tab.load_tables.load_differ(self._tables,
-                                                   self._meta['master'], self._meta['center'], self._meta['subcenter'], self._meta['mver'],
-                                                   self._meta['lver'], self._tab_p, self._tab_f
-                                                   )
+        self._tables = coder.load_tables.load_differ(self._tables,
+                                                     self._meta['master'],
+                                                     self._meta['center'],
+                                                     self._meta['subcenter'],
+                                                     self._meta['mver'],
+                                                     self._meta['lver'],
+                                                     self._tab_p,
+                                                     self._tab_f
+                                                     )
         if self._tables is None:
             raise BufrTableError("No table loaded!")
         return self._tables
@@ -125,65 +153,57 @@ class Bufr(object):
     def get_descr_full(self):
         """List descriptors, with unit and name/description"""
         desc_text = []
-        stack = [(self._desc, 0)]
-        while stack:
-            dl, di = stack.pop()
-            while di < len(dl):
-                if is_nil(dl[di]):
-                    di += 1
-                elif is_data(dl[di]):
-                    desc_text.append(str(self._tables.tab_b[dl[di]]))
-                    di += 1
-                elif is_loop(dl[di]):
-                    lm = dl[di] // 1000 - 100
-                    ln = dl[di] % 1000
-                    desc_text.append("%06d : LOOP, %d desc., %d times" % (dl[di], lm, ln))
-                    di += 1
-                elif is_oper(dl[di]):
-                    if dl[di] in self._tables.tab_c:
-                        en = self._tables.tab_c.get(dl[di])
-                    else:
-                        en = self._tables.tab_c.get(dl[di] // 1000)
-                    am = dl[di] // 1000 - 200
-                    an = dl[di] % 1000
-                    if en is None:
-                        en = (str(am), "")
-                    if dl[di] < 222000:
-                        desc_text.append("%06d : OPERATOR %s: %d" % (dl[di], en[0], an))
-                    else:
-                        desc_text.append("%06d : OPERATOR '%s'" % (dl[di], en[0]))
-                    di += 1
-                elif is_seq(dl[di]):
-                    stack.append((dl, di + 1))
-                    da = dl[di]
-                    dl = self._tables.tab_d[dl[di]]
-                    di = 0
-                    desc_text.append("%06d : SEQUENCE, %d desc." % (da, len(dl)))
+        dl = get_descr_list(self._tables, self._desc)
+        di = 0
+        while di < len(dl):
+            if descr_is_nil(dl[di]):
+                pass
+            elif descr_is_data(dl[di]):
+                desc_text.append(str(self._tables.tab_b[dl[di]]))
+            elif descr_is_loop(dl[di]):
+                lm = dl[di] // 1000 - 100
+                ln = dl[di] % 1000
+                desc_text.append("%06d : LOOP, %d desc., %d times"
+                                 % (dl[di], lm, ln))
+            elif descr_is_oper(dl[di]):
+                if dl[di] in self._tables.tab_c:
+                    en = self._tables.tab_c.get(dl[di])
+                else:
+                    en = self._tables.tab_c.get(dl[di] // 1000)
+                am = dl[di] // 1000 - 200
+                an = dl[di] % 1000
+                if en is None:
+                    en = (str(am), "")
+                if dl[di] < 222000:
+                    desc_text.append("%06d : OPERATOR, %s: %d" % (dl[di], en[0], an))
+                else:
+                    desc_text.append("%06d : OPERATOR, %s" % (dl[di], en[0]))
+            elif descr_is_seq(dl[di]):
+                desc_text.append("%06d : SEQUENCE, %d desc." % (dl[di], len(self._tables.tab_d.get(dl[di]))))
+            di += 1
         return desc_text
 
     def get_descr_short(self):
         """List descriptors, unexpanded, no unit nor name/description"""
         desc_text = []
-        stack = [(self._desc, 0)]
-        while stack:
-            dl, di = stack.pop()
-            while di < len(dl):
-                if is_nil(dl[di]):
-                    di += 1
-                elif is_data(dl[di]):
-                    desc_text.append("%06d" % dl[di])
-                elif is_loop(dl[di]):
-                    desc_text.append("%06d LOOP" % dl[di])
-                elif is_oper(dl[di]):
-                    desc_text.append("%06d OPER" % dl[di])
-                elif is_seq(dl[di]):
-                    desc_text.append("%06d SEQ" % dl[di])
-                di += 1
+        dl = self._desc
+        di = 0
+        while di < len(dl):
+            if descr_is_nil(dl[di]):
+                pass
+            elif descr_is_data(dl[di]):
+                desc_text.append("%06d" % dl[di])
+            elif descr_is_loop(dl[di]):
+                desc_text.append("%06d LOOP" % dl[di])
+            elif descr_is_oper(dl[di]):
+                desc_text.append("%06d OPER" % dl[di])
+            elif descr_is_seq(dl[di]):
+                desc_text.append("%06d SEQ" % dl[di])
+            di += 1
         return desc_text
 
     def next_subset(self):
-        """
-        Iterator for subsets in Sect. 4
+        """Iterator for subsets in Sect. 4
 
         .. IMPORTANT::
            allways consume all values from next_data() before retrieving the next report!
@@ -196,6 +216,11 @@ class Bufr(object):
         i = 0
         subset = None
         self._blob.reset(self._data_s)
+        # Determine if descriptors need recording for back-reference operator
+        self._desc_exp = get_descr_list(self._tables, self._desc)
+        self._has_backref_oper = any(True
+                                     for d in self._desc_exp
+                                     if 222000 <= d < 240000)
         logger.info("BUFR START")
         while i < self._subsets:
             logger.info("SUBSET #%d", i)
@@ -205,40 +230,46 @@ class Bufr(object):
             if self._compressed:
                 self._blob.reset(self._data_s)
             if self._blob.p >= self._data_e:
-                raise BufrDecodeError("Unexpected end of data section!")
+                raise BufrDecodeError("Unexpected end of bin_data section!")
             # Create new Subset object
-            subset = Subset(self._tables, self._blob, self._desc, self._compressed, (i, self._subsets), self._data_e)
+            subset = Subset(self._tables,
+                            self._blob,
+                            self._desc,
+                            self._compressed,
+                            self._has_backref_oper,
+                            (i, self._subsets),
+                            self._data_e)
             yield subset
             i += 1
-            # Padding bits (and to next even byte) for data pointer if necessary
+            # Padding bits (and to next even byte) for bin_data pointer if necessary
             if self._edition < 4:
-                data_p = self._blob.p + (self._blob.bc and 1)
-                data_p += data_p & 1
-                logger.debug("Padding  p:%d  bc:%d  -->  p:%d", self._blob.p, self._blob.bc, data_p)
-                self._blob.reset(data_p)
+                p = self._blob.p
+                bc = self._blob.bc
+                self._blob.read_align(even=True)
+                logger.debug("Padding  p:%d  bc:%d  -->  p:%d",
+                             p, bc, self._blob.p)
         # Padding bits after last subset
-        data_p = self._blob.p + (self._blob.bc and 1)
-        self._blob.reset(data_p)
+        self._blob.read_align()
         # Check if sect.5 is reached
-        if data_p != self._data_e or self._blob[data_p, data_p + 4] != "7777":
-            logger.warning("Data section did not end properly, %d -> '%s'", data_p, self._blob[data_p, data_p + 4])
+        if self._blob.p != self._data_e or self._blob.read_bytes(4) != "7777":
+            logger.warning("Data section did not end properly, %d -> '%s'",
+                           self._blob.p, self._blob[self._blob.p, self._blob.p + 4])
         logger.info("BUFR END")
         raise StopIteration
 
-    def decode(self, data, tables=True):
-        """
-        Decodes all meta-data of the BUFR.
+    def decode_meta(self, bin_data, load_tables=True):
+        """Decodes all meta-data of the BUFR.
 
         This function prepares the iterators for reading data.
 
-        :param string data: data object with complete BUFR
-        :param bool tables: automatically load tables
+        :param bin_data: Blob: data object with complete BUFR.
+        :param load_tables: bool: automatically load load_tables.
         :raise BufrDecodeWarning: recoverable error.
         :raise BufrDecodeError: error that stops decoding.
         """
-        if data is None or not len(data):
+        if bin_data is None or not len(bin_data):
             raise BufrDecodeWarning("Data buffer is empty!")
-        self._blob = data
+        self._blob = bin_data
         self._meta = {}
         logger.info("SECT 0..5 DECODE")
 
@@ -254,7 +285,7 @@ class Bufr(object):
         logger.debug("SECT_1\t offs:%d len:%d = %s", o, l, r)
 
         tables_fail = None
-        if tables:
+        if load_tables:
             try:
                 self._tables = self.load_tables()
             except StandardError or Warning as exc:
@@ -294,3 +325,157 @@ class Bufr(object):
             raise tables_fail
 
         return self._meta
+
+    def decode(self, bin_data, load_tables=True):
+        """Decodes the BUFR into a JSON compatible data object.
+
+        The created JSON compatible data object is a list of the BUFR sections,
+        where each section itself is a list of the values, in the same order as
+        stored in a BUFR.
+
+        :param bin_data: Blob: data object with complete BUFR.
+        :param load_tables: bool: automatically load load_tables.
+        :return: JSON object
+        :raise BufrDecodeWarning: recoverable error.
+        :raise BufrDecodeError: error that stops decoding.
+        """
+        self.decode_meta(bin_data, load_tables)
+        json_bufr = []
+        # Section 0
+        json_bufr.append(["BUFR", self._meta["edition"]])
+        # Section 1
+        if self._meta["edition"] == 3:
+            mkeys = ("master", "subcenter", "center", "update", "sect2",
+                     "cat", "cat_loc", "mver", "lver")
+        else:
+            mkeys = ("master", "center", "subcenter", "update", "sect2",
+                     "cat", "cat_int", "cat_loc", "mver", "lver")
+        mval = []
+        for k in mkeys:
+            mval.append(self._meta[k])
+        mval.extend((self._meta["datetime"].year, self._meta["datetime"].month,
+                     self._meta["datetime"].day, self._meta["datetime"].hour,
+                     self._meta["datetime"].minute, self._meta["datetime"].second)
+                    )
+        json_bufr.append(mval)
+        # Section 3
+        sect_buf = []
+        sect_buf.extend([self._subsets, self._meta["obs"], self._meta["comp"]])
+        mval = []
+        for k in self._desc:
+            mval.append("%06d" % k)
+        sect_buf.append(mval)
+        json_bufr.append(sect_buf)
+        # Section 4
+        stack = []
+        for report in self.next_subset():
+            stack.append([])
+            rpl_i = 0
+            for descr_entry in report.next_data():
+                if descr_entry.mark is not None:
+                    mark_el = descr_entry.mark.split(" ")
+                    if mark_el[0] in ("RPL", "REP"):
+                        if len(mark_el) == 3:
+                            # Replication starts
+                            stack.append([])
+                            rpl_i = 0
+                        elif mark_el[1] == "END":
+                            # Replication ends
+                            xpar = stack.pop()
+                            stack[-1].append(xpar)
+                            xpar = stack.pop()
+                            stack[-1].append(xpar)
+                        elif mark_el[1] == "NIL":
+                            # No iterations
+                            xpar = stack.pop()
+                            stack[-1].append(xpar)
+                        else:
+                            # For each iteration:
+                            if rpl_i:
+                                xpar = stack.pop()
+                                stack[-1].append(xpar)
+                            rpl_i += 1
+                            stack.append([])
+                    elif descr_entry.mark == "BMP DEF":
+                        stack[-1].append([[b] for b in descr_entry.value])
+                else:
+                    if isinstance(descr_entry.quality, (int, float)):
+                        stack[-1].append(descr_entry.quality)
+                    stack[-1].append(descr_entry.value)
+        json_bufr.append(stack)
+        json_bufr.append(["7777"])
+        return json_bufr
+
+    def encode(self, json_data, load_tables=True):
+        """Encodes the JSON object as BUFR.
+
+        This function creates a BUFR as byte array from the JSON data object.
+
+        The structure of the JSON object is of type "list" and resembles the
+        logical structure of a BUFR, where each section itself is a list of
+        values in the same order as in a BUFR.
+
+        :param json_data: JSON object.
+        :param load_tables: automatically load tables
+        :return: BUFR, a byte array object
+        :raise BufrDecodeWarning: recoverable error.
+        :raise BufrDecodeError: error that stops decoding.
+        """
+        sect_start = [0] * 6
+        bin_data = Blob()
+        sect_i = 0
+        sect_start[sect_i], sect_meta = sect.encode_sect0(bin_data, json_data[sect_i][1])
+        logger.debug("SECT %d start:%d  %s", sect_i + 1, sect_start[sect_i], sect_meta)
+        self._meta.update(sect_meta)
+        self._edition = sect_meta['edition']
+        if self._edition not in SUPPORTED_BUFR_EDITION:
+            raise BufrDecodeError("BUFR edition %d not supported" % self._edition)
+        sect_i += 1
+        sect_start[sect_i], sect_meta = sect.encode_sect1(bin_data,
+                                                          json_data[sect_i],
+                                                          self._edition)
+        logger.debug("SECT %d start:%d  %s", sect_i + 1, sect_start[sect_i], sect_meta)
+        self._meta.update(sect_meta)
+        if load_tables and not self._tables:
+            try:
+                self._tables = self.load_tables()
+            except StandardError or Warning as exc:
+                raise exc
+        sect_i += 1
+        sect_start[sect_i], sect_meta = sect.encode_sect3(bin_data,
+                                                          json_data[sect_i],
+                                                          self._edition)
+        logger.debug("SECT %d start:%d  %s", sect_i + 1, sect_start[sect_i], sect_meta)
+        self._meta.update(sect_meta)
+        self._subsets = sect_meta['subsets']
+        self._compressed = sect_meta['comp']
+        self._desc = sect_meta['descr']
+        sect_i += 1
+        subset_writer = SubsetWriter(self._tables,
+                                     bin_data,
+                                     self._desc,
+                                     self._compressed,
+                                     self._subsets,
+                                     edition=self._edition)
+        sect_start[sect_i] = sect.encode_sect4(bin_data,
+                                               self._edition)
+        logger.debug("SECT %d start:%d", sect_i + 1, sect_start[sect_i])
+        subset_writer.process(json_data[sect_i])
+        # Pad last octet if needed, align to even octet number if Ed.3
+        bin_data.write_align(self._edition == 3)
+        sect_i += 1
+        sect_start[sect_i] = sect.encode_sect5(bin_data)
+        logger.debug("SECT %d start:%d", sect_i + 1, sect_start[sect_i])
+        sect.encode_sect4_size(bin_data,
+                               sect_start[sect_i - 1],
+                               sect_start[sect_i])
+        sect.encode_bufr_size(bin_data)
+        return bin_data.get_bytes()
+
+    def get_blob(self):
+        """Return binary array object with the BUFR.
+
+        :return: BUFR
+        :rtype: read.Blob
+        """
+        return self._blob

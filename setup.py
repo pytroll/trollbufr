@@ -27,31 +27,34 @@ from setuptools import setup, find_packages
 import imp
 import sys
 
-version = imp.load_source('trollbufr.version', 'trollbufr/version.py')
+version = imp.load_source("trollbufr.version", "trollbufr/version.py")
 
-requires = []
+requires = ["bitstring"]
 
 if sys.version_info < (2, 7):
-    requires.append('argparse')
+    requires.append("argparse")
 
-setup(name='trollbufr',
+setup(name="trollbufr",
       version=version.__version__,
-      description='Reading meteorological data format BUFR in pure Python',
-      author='Alexander Maul',
-      author_email='alexander.maul@dwd.de',
+      description="Reading meteorological data format BUFR in pure Python",
+      author="Alexander Maul",
+      author_email="alexander.maul@dwd.de",
       classifiers=["Development Status :: 4 - Beta",
                    "Intended Audience :: Science/Research",
                    "License :: OSI Approved :: GNU General Public License v3 " +
                    "or later (GPLv3+)",
                    "Operating System :: OS Independent",
-                   "Programming Language :: Python",
+                   "Programming Language :: Python :: 2",
+                   "Programming Language :: Python :: 2.6",
+                   "Programming Language :: Python :: 2.7",
                    "Topic :: Scientific/Engineering",
                    "Topic :: Scientific/Engineering :: Geo-Science"],
-      test_suite='bufr.tests.suite',
+      test_suite="bufr.tests.suite",
       entry_points={
-          'console_scripts': ['trollbufr_read = trollbufr.reader:run',
-                              'trollbufr_update = trollbufr.update:run']},
-      packages=['trollbufr','trollbufr.read','trollbufr.tab'],
+          "console_scripts": ["trollbufr = trollbufr.bufr_main:run",
+                              "trollbufr_update = trollbufr.update:run"]},
+      packages=["trollbufr", "trollbufr.coder"],
       install_requires=requires,
+      python_requires=">=2.6, <3",
       zip_safe=False,
       )
