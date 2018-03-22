@@ -209,9 +209,9 @@ def write_bufr(args):
             bin_data = bufr.encode(json_data_msg["bufr"],
                                    load_tables=True)
             if json_data_msg["heading"] is not None:
+                multi_bul and print("\r\r\n\r\r\n", end="", file=fh_out)
                 print("%s\r\r" % json_data_msg["heading"], file=fh_out)
             print(bin_data, end="", file=fh_out)
-            multi_bul and print("\r\r\n\r\r\n", end="", file=fh_out)
             multi_bul = True
     if fh_out is not sys.stdout:
         fh_out.close()
