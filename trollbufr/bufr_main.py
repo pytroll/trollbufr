@@ -29,8 +29,7 @@ from __future__ import print_function
 
 import sys
 import os
-from argparse import ArgumentParser
-from argparse import RawDescriptionHelpFormatter
+from argparse import ArgumentParser, RawDescriptionHelpFormatter
 from version import __version__
 from bufr import Bufr
 from coder.bufr_types import TabBType
@@ -42,102 +41,106 @@ logger = logging.getLogger("trollbufr")
 
 
 def read_bufr_data(args):
-    bufr_files = args.bufr
+    try:
+        fh_out = open(args.out_file, "wb")
+    except:
+        fh_out = sys.stdout
     bufr = Bufr(args.tables_type, args.tables_path)
-    for fn in bufr_files:
-        print ("FILE\t%s" % fn)
+    for fn_in in args.in_file:
+        print("FILE\t%s" % fn_in, file=fh_out)
         i = 0
-        for blob, size, header in load_file.next_bufr(fn):
+        for blob, size, header in load_file.next_bufr(fn_in):
             if args.bulletin is not None and i != args.bulletin:
                 i += 1
                 continue
-            print("BUFR\t#%d (%d B)" % (i, size))
+            print("BUFR\t#%d (%d B)" % (i, size), file=fh_out)
             i += 1
-            print("HEADER\t%s" % header)
+            print("HEADER\t%s" % header, file=fh_out)
             try:
                 bufr.decode_meta(blob, load_tables=False)
                 tabl = bufr.load_tables()
-                print("META:\n%s" % bufr.get_meta_str())
+                print("META:\n%s" % bufr.get_meta_str(), file=fh_out)
                 for report in bufr.next_subset():
-                    print("SUBSET\t#%d/%d" % report.subs_num)
+                    print("SUBSET\t#%d/%d" % report.subs_num, file=fh_out)
                     if args.sparse:
                         for descr_entry in report.next_data():
                             if descr_entry.mark is not None:
-                                print("  ", descr_entry.mark, end="")
+                                print("  ", descr_entry.mark, end="", file=fh_out)
                                 if descr_entry.value:
-                                    print("", "".join(str(x) for x in descr_entry.value), end="")
-                                print()
+                                    print("", "".join(str(x) for x in descr_entry.value), end="", file=fh_out)
+                                print(file=fh_out)
                                 continue
                             if descr_entry.value is None:
-                                print("%06d: ///" % (descr_entry.descr))
+                                print("%06d: ///" % (descr_entry.descr), file=fh_out)
                             elif descr_entry.quality is not None:
                                 print("%06d: %s (%s)" % (descr_entry.descr,
                                                          str(descr_entry.value),
-                                                         descr_entry.quality))
+                                                         descr_entry.quality), file=fh_out)
                             else:
                                 print("%06d: %s" % (descr_entry.descr,
-                                                    str(descr_entry.value)))
+                                                    str(descr_entry.value)), file=fh_out)
                     else:
                         for descr_entry in report.next_data():
                             if descr_entry.mark is not None:
-                                print("  ", descr_entry.mark, end="")
+                                print("  ", descr_entry.mark, end="", file=fh_out)
                                 if descr_entry.value:
                                     try:
                                         print("",
                                               "".join(str(x) for x in descr_entry.value),
-                                              end="")
+                                              end="", file=fh_out)
                                     except StandardError as e:
                                         logger.exception("%s", descr_entry)
                                         raise e
-                                print()
+                                print(file=fh_out)
                                 continue
                             d_name, d_unit, d_typ = tabl.lookup_elem(descr_entry.descr)
                             if d_typ in (TabBType.CODE, TabBType.FLAG):
                                 if descr_entry.value is None:
                                     print("%06d %-40s = Missing value"
-                                          % (descr_entry.descr, d_name))
+                                          % (descr_entry.descr, d_name), file=fh_out)
                                 else:
                                     v = tabl.lookup_codeflag(descr_entry.descr,
                                                              descr_entry.value)
                                     print("%06d %-40s = %s"
                                           % (descr_entry.descr,
                                              d_name,
-                                             str(v)))
+                                             str(v)), file=fh_out)
                             else:
                                 if d_unit in ("CCITT IA5", "Numeric"):
                                     d_unit = ""
                                 if descr_entry.value is None:
                                     print("%06d %-40s = /// %s"
                                           % (descr_entry.descr,
-                                             d_name, d_unit))
+                                             d_name, d_unit), file=fh_out)
                                 elif descr_entry.quality is not None:
                                     print("%06d %-40s = %s %s (%s)"
                                           % (descr_entry.descr,
                                              d_name,
                                              str(descr_entry.value),
                                              d_unit,
-                                             descr_entry.quality))
+                                             descr_entry.quality), file=fh_out)
                                 else:
                                     print("%06d %-40s = %s %s"
                                           % (descr_entry.descr,
                                              d_name,
                                              str(descr_entry.value),
-                                             d_unit))
+                                             d_unit), file=fh_out)
             except StandardError as e:
-                print("ERROR\t%s" % e)
+                print("ERROR\t%s" % e, file=fh_out)
                 if logger.isEnabledFor(logging.DEBUG):
                     logger.exception(e)
                 else:
                     logger.warning(e)
+    if fh_out is not sys.stdout:
+        fh_out.close()
 
 
-def get_bufr_json(args):
-    bufr_files = args.bufr
+def write_bufr_json(args):
     bufr = Bufr(args.tables_type, args.tables_path)
     json_data = []
     bufr_i = -1
-    for fn in bufr_files:
-        for blob, _, header in load_file.next_bufr(fn):
+    for fn_in in args.in_file:
+        for blob, _, header in load_file.next_bufr(fn_in):
             bufr_i += 1
             if args.bulletin is not None and bufr_i != args.bulletin:
                 continue
@@ -146,41 +149,72 @@ def get_bufr_json(args):
             except StandardError as e:
                 logger.exception(e)
             json_data.append({"heading": header,
-                              "file": fn,
+                              "file": fn_in,
                               "index": bufr_i,
                               "bufr": json_bufr})
-    return json_data
+    import json
+    out_fh = open(args.out_file, "wb") or sys.stdout
+    with out_fh as fh_out:
+        if args.sparse:
+            json.dump(json_data, fh_out)
+        else:
+            json.dump(json_data, fh_out, indent=3, separators=(',', ': '))
 
 
 def read_bufr_desc(args):
-    bufr_files = args.bufr
-    for fn in bufr_files:
-        print("FILE\t%s" % fn)
+    try:
+        fh_out = open(args.out_file, "wb")
+    except:
+        fh_out = sys.stdout
+    for fn_in in args.in_file:
+        print("FILE\t%s" % fn_in, file=fh_out)
         i = 0
-        for blob, size, header in load_file.next_bufr(fn):
+        for blob, size, header in load_file.next_bufr(fn_in):
             if args.bulletin is not None and i != args.bulletin:
                 i += 1
                 continue
-            print("BUFR\t#%d (%d B)" % (i, size))
+            print("BUFR\t#%d (%d B)" % (i, size), file=fh_out)
             i += 1
-            print("HEADER\t%s" % header)
+            print("HEADER\t%s" % header, file=fh_out)
             try:
                 bufr = Bufr(args.tables_type, args.tables_path)
                 bufr.decode_meta(blob, load_tables=(not args.sparse))
-                print("META\n%s" % bufr.get_meta_str())
+                print("META\n%s" % bufr.get_meta_str(), file=fh_out)
                 if args.sparse:
                     d = bufr.get_descr_short()
                 else:
                     d = bufr.get_descr_full()
-                print("DESC :\n%s" % "\n".join(d))
+                print("DESC :\n%s" % "\n".join(d), file=fh_out)
             except StandardError as e:
-                print("ERROR\t%s" % e)
+                print("ERROR\t%s" % e, file=fh_out)
                 if logger.isEnabledFor(logging.DEBUG):
                     logger.exception(e)
+    if fh_out is not sys.stdout:
+        fh_out.close()
 
 
 def write_bufr(args):
-    pass
+    import json
+    try:
+        fh_out = open(args.out_file, "wb")
+    except:
+        fh_out = sys.stdout
+    multi_bul = False
+    for fn_in in args.in_file:
+        with open(fn_in, "rb") as fh_in:
+            json_data = json.load(fh_in)
+        for json_data_msg in json_data:
+            bufr = Bufr(tab_fmt=args.tables_type,
+                        tab_path=args.tables_path)
+            bin_data = bufr.encode(json_data_msg["bufr"],
+                                   load_tables=True)
+            if json_data_msg["heading"] is not None:
+                print("%s\r\r" % json_data_msg["heading"], file=fh_out)
+            print(bin_data, end="", file=fh_out)
+            multi_bul and print("\r\r\n\r\r\n", end="", file=fh_out)
+            multi_bul = True
+    if fh_out is not sys.stdout:
+        fh_out.close()
 
 
 def run(argv=None):
@@ -219,12 +253,16 @@ def run(argv=None):
                               help="print info/descriptor"
                               )
         group_op.add_argument("-j", "--json-dump", dest="json_dump",
-                              metavar="file",
+                              action="store_true",
                               help="dump data in JSON format"
                               )
         group_op.add_argument("-e", "--encode", dest="json_encode",
-                              metavar="file",
+                              action="store_true",
                               help="encode data from JSON file as BUFR"
+                              )
+        group_op.add_argument("-o", "--output", dest="out_file",
+                              metavar="file",
+                              help="write to file instead STDOUT"
                               )
         group_tab = parser.add_argument_group(title="table setting")
         group_tab.add_argument("-t", "--tables_path",
@@ -247,8 +285,8 @@ def run(argv=None):
                             metavar="N",
                             help="decode only bulletin #N in file (starts with '0')"
                             )
-        parser.add_argument(dest="bufr",
-                            help="file(s) with BUFR content",
+        parser.add_argument(dest="in_file",
+                            help="file(s) with BUFR or JSON content",
                             metavar="file",
                             nargs='+'
                             )
@@ -274,7 +312,7 @@ def run(argv=None):
         if args.tables_path is None:
             sys.stderr.write("No path to tables given!")
             return 1
-        if not (args.desc or args.reader or args.json_dump):
+        if not (args.desc or args.reader or args.json_dump or args.json_encode):
             sys.stderr.write("Unknown operation!")
             return 1
 
@@ -289,15 +327,9 @@ def run(argv=None):
             read_bufr_desc(args)
         if args.reader:
             read_bufr_data(args)
-        if args.json_dump:
-            foo = get_bufr_json(args)
-            import json
-            with open(args.json_dump, "wb") as fh_out:
-                if args.sparse:
-                    json.dump(foo, fh_out)
-                else:
-                    json.dump(foo, fh_out, indent=3, separators=(',', ': '))
-        if args.json_encode:
+        elif args.json_dump:
+            write_bufr_json(args)
+        elif args.json_encode:
             write_bufr(args)
 
         if PROFILE:
