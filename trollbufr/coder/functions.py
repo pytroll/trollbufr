@@ -264,7 +264,7 @@ def num2rval(tab_b_elem, alter, value):
     return rval, loc_width
 
 
-def num2cval(tab_b_elem, alter, value_list):
+def num2cval(tab_b_elem, alter, fix_width, value_list):
     """Process and compress a list of values and apply num2rval() to each.
 
     Returns the
@@ -278,11 +278,14 @@ def num2cval(tab_b_elem, alter, value_list):
     rval_list = []
     if not any(value_list) or max(value_list) == min(value_list):
         # All values are "missing", or all are equal
-        min_value, loc_width = num2rval(tab_b_elem, alter, value_list[0])
+        if tab_b_elem and alter:
+            min_value, loc_width = num2rval(tab_b_elem, alter, value_list[0])
+        else:
+            min_value, loc_width = value_list[0], fix_width
         min_width = 0
         recal_val = []
         recal_max_val = 0
-    elif tab_b_elem.typ == TabBType.STRING:
+    elif tab_b_elem is not None and tab_b_elem.typ == TabBType.STRING:
         for v in value_list:
             rval_list.extend(num2rval(tab_b_elem, alter, v))
         min_width = loc_width = rval_list[1]
@@ -293,8 +296,12 @@ def num2cval(tab_b_elem, alter, value_list):
         recal_val = [(v if v is not None else all_one(min_width))
                      for v in recal_val]
     else:
-        for v in value_list:
-            rval_list.extend(num2rval(tab_b_elem, alter, v))
+        if tab_b_elem and alter:
+            for v in value_list:
+                rval_list.extend(num2rval(tab_b_elem, alter, v))
+        else:
+            for v in value_list:
+                rval_list.extend(v, fix_width)
         loc_width = rval_list[1]
         min_value = min(rval_list[::2])
         min_width = 0
@@ -332,6 +339,8 @@ def add_val(blob,  value_list, value_list_idx, tab_b_elem=None, alter=None, fix_
         loc_value, loc_width = num2rval(tab_b_elem, alter, val_buf)
     else:
         raise BufrEncodeError("Can't determine width.")
+    if loc_value is None:
+        loc_value = all_one(loc_width)
     if tab_b_elem is not None and tab_b_elem.typ == TabBType.STRING:
         blob.write_bytes(loc_value, loc_width)
     else:
@@ -341,6 +350,8 @@ def add_val(blob,  value_list, value_list_idx, tab_b_elem=None, alter=None, fix_
 def add_val_comp(blob, value_list, value_list_idx,  tab_b_elem=None, alter=None, fix_width=None):
     """
     """
+    if tab_b_elem is None and fix_width is None:
+        raise BufrEncodeError("Can't determine width.")
     if isinstance(value_list, (list, tuple)):
         # Build a list of this value from all subsets.
         try:
@@ -353,16 +364,10 @@ def add_val_comp(blob, value_list, value_list_idx,  tab_b_elem=None, alter=None,
         # take value_list_idx as the numer of subsets and multiply them.
         # --> Same value for all subsets.
         val_l = [value_list] * value_list_idx
-    if fix_width is not None:
-        loc_width = fix_width
-        min_value = 0
-    elif tab_b_elem is not None and (31000 <= tab_b_elem.descr < 32000):
+    if tab_b_elem is not None and (31000 <= tab_b_elem.descr < 32000):
         # Replication/repetition descriptor (group 31) is never altered.
-        loc_width, min_value, min_width, recal_val = num2cval(tab_b_elem, None, val_l)
-    elif tab_b_elem is not None and alter is not None:
-        loc_width, min_value, min_width, recal_val = num2cval(tab_b_elem, alter, val_l)
-    else:
-        raise BufrEncodeError("Can't determine width.")
+        alter = None
+    loc_width, min_value, min_width, recal_val = num2cval(tab_b_elem, alter, fix_width, val_l)
     if tab_b_elem is not None and tab_b_elem.typ == TabBType.STRING:
         # Special handling for strings.
         blob.write_bytes(min_value, loc_width)

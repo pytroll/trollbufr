@@ -251,9 +251,9 @@ class Bufr(object):
         # Padding bits after last subset
         self._blob.read_align()
         # Check if sect.5 is reached
-        if self._blob.p != self._data_e or self._blob.read_bytes(4) != "7777":
-            logger.warning("Data section did not end properly, %d -> '%s'",
-                           self._blob.p, self._blob[self._blob.p, self._blob.p + 4])
+        if self._blob.p != self._data_e:
+            logger.warning("Data section did not end properly, %d <> %d",
+                           self._blob.p, self._data_e)
         logger.info("BUFR END")
         raise StopIteration
 
