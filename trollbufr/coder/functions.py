@@ -280,6 +280,8 @@ def num2cval(tab_b_elem, alter, fix_width, value_list):
         # All values are "missing", or all are equal
         if tab_b_elem and alter:
             min_value, loc_width = num2rval(tab_b_elem, alter, value_list[0])
+        elif tab_b_elem and alter is None and fix_width is None:
+            min_value, loc_width = value_list[0], tab_b_elem.width
         else:
             min_value, loc_width = value_list[0], fix_width
         min_width = 0
@@ -301,7 +303,7 @@ def num2cval(tab_b_elem, alter, fix_width, value_list):
                 rval_list.extend(num2rval(tab_b_elem, alter, v))
         else:
             for v in value_list:
-                rval_list.extend(v, fix_width)
+                rval_list.extend((v, fix_width))
         loc_width = rval_list[1]
         min_value = min(rval_list[::2])
         min_width = 0
@@ -314,7 +316,7 @@ def num2cval(tab_b_elem, alter, fix_width, value_list):
         recal_val = [(v if v is not None else all_one(min_width))
                      for v in recal_val]
 
-    logger.debug("lw:%d  mval:%s  mwi:%d  max:%s  recal_vaL:%s", loc_width,
+    logger.debug("lw:%s  mval:%s  mwi:%s  max:%s  recal_vaL:%s", loc_width,
                  min_value, min_width, recal_max_val, recal_val)
 
     return loc_width, min_value, min_width, recal_val
