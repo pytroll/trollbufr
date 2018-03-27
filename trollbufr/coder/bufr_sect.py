@@ -124,6 +124,10 @@ def decode_sect1(bin_data, offset, edition=4):
     rd = dict(zip(key_offs[edition][0], vals))
     rd["datetime"] = str2dtg(rd["datetime"], ed=edition)
     l = rd.pop("length")
+    if bin_data.get_point() < offset + l:
+        rd["sect1_local_use"] = bin_data.readlist("hex:8," * (offset + l - bin_data.get_point()))
+        if rd["sect1_local_use"] == ["00"]:
+            rd.pop("sect1_local_use")
     bin_data.reset(offset + l)
     return offset + l, l, rd
 
@@ -139,7 +143,7 @@ def encode_sect1(bin_data, json_data, edition=4):
                      "update", "sect2",
                      "cat", "cat_loc",
                      "mver", "lver"),
-                    "uint:24=18, uint:8={}, uint:8={}, uint:8={},"
+                    "uint:24=0, uint:8={}, uint:8={}, uint:8={},"
                     + "uint:8={}, bool={}, pad:7, "
                     + "uint:8={}, uint:8={}, "
                     + "uint:8={}, uint:8={}"
@@ -148,30 +152,38 @@ def encode_sect1(bin_data, json_data, edition=4):
                      "update", "sect2",
                      "cat", "cat_int", "cat_loc",
                      "mver", "lver"),
-                    "uint:24=22, uint:8={}, uint:16={}, uint:16={}, "
+                    "uint:24=0, uint:8={}, uint:16={}, uint:16={}, "
                     + "uint:8={}, bool={}, pad:7, "
                     + "uint:8={}, uint:8={}, uint:8={}, "
                     + "uint:8={}, uint:8={}"
                     )
                 }
+    loc_use = None
     if isinstance(json_data, dict):
+        if "sect1_local_use" in json_data:
+            loc_use = json_data.pop("sect1_local_use")
         ord_val = [json_data[k] for k in key_offs[edition][0]]
         rd = json_data
         rd["datetime"] = dtg2str(json_data["datetime"], edition)
     else:
+        if isinstance(json_data[-1], (list, tuple)):
+            loc_use = json_data[-1]
+            json_data = json_data[:-1]
         ord_val = json_data
         rd = dict(zip(key_offs[edition][0], json_data[:-6]))
         rd["datetime"] = dtg2str(json_data[-6:], edition)
-    section_start = len(bin_data) // 8
+    section_start = len(bin_data)
     bin_data.writelist(key_offs[edition][1], ord_val)
     if edition == 3:
         bin_data.write_bytes(rd["datetime"], 5 * 8)
-        bin_data.write_align(True)
-        rd["length"] = 18
     else:
         bin_data.write_bytes(rd["datetime"], 7 * 8)
-        rd["length"] = 22
-    return section_start, rd
+    if loc_use:
+        bin_data.writelist("hex:8={}," * len(loc_use), loc_use)
+    (edition == 3) and bin_data.write_align(True)
+    rd["length"] = (len(bin_data) - section_start) // 8
+    bin_data.set_uint(rd["length"], 24, section_start)
+    return section_start // 8, rd
 
 
 """
@@ -179,7 +191,7 @@ Section 2
 =========
 0-2   Section length
 3     Reserved
-4-n   Local bin_data
+4-n   Local data
 """
 
 
@@ -187,9 +199,22 @@ def decode_sect2(bin_data, offset):
     """
     :return: offset, length, {}
     """
-    l = bin_data.read("uint:24")
+    l = bin_data.readlist("uint:24, pad:8")[0]
+    s2data = bin_data.readlist("hex:8," * (l - 4))
     bin_data.reset(offset + l)
-    return offset + l, l, {}
+    return offset + l, l, {'data_start': offset + 4, 'data_end': offset + l, "sect2_data": s2data}
+
+
+def encode_sect2(bin_data, json_data):
+    """
+    :return: section start offset
+    """
+    section_start = len(bin_data)
+    bin_data.writelist("uint:24={}, pad:8", (0,))
+    bin_data.writelist("hex:8={}," * len(json_data), json_data)
+    sz = (len(bin_data) - section_start) // 8
+    bin_data.set_uint(sz, 24, section_start)
+    return section_start // 8
 
 
 """
@@ -238,14 +263,10 @@ def encode_sect3(bin_data, json_data, edition=4):
     for d in json_data[3]:
         bin_data.writelist("uint:2={}, uint:6={}, uint:8={}", (int(d[0:1]), int(d[1:3]), int(d[3:])))
         descr.append(int(d))
-    
-    # TODO: extra bytes for local center use.
-    
     # Ed.3: pad section to even number of octets.
     bin_data.write_align(edition == 3)
     rd["descr"] = descr
-    s3end = len(bin_data)
-    sz = (s3end - section_start) // 8
+    sz = (len(bin_data) - section_start) // 8
     bin_data.set_uint(sz, 24, section_start)
     return section_start // 8, rd
 
