@@ -28,7 +28,7 @@ Created on Mar 31, 2017
 """
 import functions as fun
 from errors import BufrDecodeError
-from bufr_types import DescrDataEntry
+from bufr_types import DescrDataEntry, TabBType
 import logging
 
 logger = logging.getLogger("trollbufr")
@@ -82,7 +82,7 @@ def prep_oper(subset, descr):
         2: fun_02,  # Change scale
         3: fun_03_w,  # Set of new reference values
         4: fun_04,  # Add associated field, shall be followed by 031021
-        5: fun_fail,  # Signify with characters, plain language text as returned value
+        5: fun_05_w,  # Signify with characters, plain language text as returned value
         6: fun_fail,  # Length of local descriptor
         7: fun_07,  # Change scale, reference, width
         8: fun_08,  # Change data width for characters
@@ -187,6 +187,18 @@ def fun_05_r(subset, descr):
     # Special rval for plain character
     l_rval = DescrDataEntry(descr, None, v, None)
     return l_rval
+
+
+def fun_05_w(subset, descr):
+    """Signify with characters, plain language text."""
+    an = descr % 1000
+    logger.debug("OP text %d B -> '%s'", an, subset._vl[subset._vi])
+    subset.add_val(subset._blob,
+                   subset._vl,
+                   subset._vi,
+                   fix_width=an * 8,
+                   fix_typ=TabBType.STRING)
+    return None
 
 
 def fun_06_r(subset, descr):

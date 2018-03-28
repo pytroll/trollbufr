@@ -322,8 +322,19 @@ def num2cval(tab_b_elem, alter, fix_width, value_list):
     return loc_width, min_value, min_width, recal_val
 
 
-def add_val(blob,  value_list, value_list_idx, tab_b_elem=None, alter=None, fix_width=None):
-    """
+def add_val(blob,  value_list, value_list_idx, tab_b_elem=None, alter=None, fix_width=None, fix_typ=None):
+    """Append a value to the BUFR bitstream.
+
+    Exactly one number or string is transformed with num2rval(), this is for
+    not-compressed BUFR.
+
+    :param blob: bitstream object.
+    :param value_list: single value or value list, with latter index is required.
+    :param value_list_idx: index to value_list, ignored if value_list is single value.
+    :param tab_b_elem: descriptor
+    :param alter: alteration object
+    :param fix_width: fix bit-width, if descriptor is not applicable.
+    :param fix_typ: fix type, if descriptor is not applicable.
     """
     if isinstance(value_list, (list, tuple)):
         val_buf = value_list[value_list_idx]
@@ -343,14 +354,24 @@ def add_val(blob,  value_list, value_list_idx, tab_b_elem=None, alter=None, fix_
         raise BufrEncodeError("Can't determine width.")
     if loc_value is None:
         loc_value = all_one(loc_width)
-    if tab_b_elem is not None and tab_b_elem.typ == TabBType.STRING:
+    if (tab_b_elem is not None and tab_b_elem.typ == TabBType.STRING) or fix_typ == TabBType.STRING:
         blob.write_bytes(loc_value, loc_width)
     else:
         blob.write_uint(loc_value, loc_width)
 
 
-def add_val_comp(blob, value_list, value_list_idx,  tab_b_elem=None, alter=None, fix_width=None):
-    """
+def add_val_comp(blob, value_list, value_list_idx, tab_b_elem=None, alter=None, fix_width=None, fix_typ=None):
+    """Append a set of values to a compressed BUFR bitstream.
+
+    value_list_idx serves as index to value_list, or as multiplicator for a single value.
+
+    :param blob: bitstream object.
+    :param value_list: value list or single value, with latter index is required.
+    :param value_list_idx: index to value_list, or number of subsets if value_list is single value.
+    :param tab_b_elem: descriptor
+    :param alter: alteration object
+    :param fix_width: fix bit-width, if descriptor is not applicable.
+    :param fix_typ: fix type, if descriptor is not applicable.
     """
     if tab_b_elem is None and fix_width is None:
         raise BufrEncodeError("Can't determine width.")
@@ -370,7 +391,7 @@ def add_val_comp(blob, value_list, value_list_idx,  tab_b_elem=None, alter=None,
         # Replication/repetition descriptor (group 31) is never altered.
         alter = None
     loc_width, min_value, min_width, recal_val = num2cval(tab_b_elem, alter, fix_width, val_l)
-    if tab_b_elem is not None and tab_b_elem.typ == TabBType.STRING:
+    if (tab_b_elem is not None and tab_b_elem.typ == TabBType.STRING) or fix_typ == TabBType.STRING:
         # Special handling for strings.
         blob.write_bytes(min_value, loc_width)
         blob.write_uint(min_width // 8, 6)
