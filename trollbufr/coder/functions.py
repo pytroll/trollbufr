@@ -63,7 +63,7 @@ def octets2num(bin_data, offset, count):
 
 
 def get_rval(bin_data, comp, subs_num, tab_b_elem=None, alter=None, fix_width=None):
-    """Read a raw value integer from the bin_data section.
+    """Read a raw value integer from the data section.
 
     The number of bits are either fixed or determined from Tab.B and previous 
     alteration operators.
@@ -175,12 +175,18 @@ def rval2num(tab_b_elem, alter, rval):
     val = None
 
     # Alter = {'wnum':0, 'wchr':0, 'refval':0, 'scale':0, 'assoc':0}
-    if tab_b_elem.typ == TabBType.STRING and alter.wchr:
+    if tab_b_elem.typ == TabBType.CODE or tab_b_elem.typ == TabBType.FLAG:
+        loc_width = tab_b_elem.width
+        loc_refval = tab_b_elem.refval
+        loc_scale = tab_b_elem.scale
+    elif tab_b_elem.typ == TabBType.STRING and alter.wchr:
         loc_width = alter.wchr
+        loc_refval = tab_b_elem.refval
+        loc_scale = tab_b_elem.scale
     else:
         loc_width = tab_b_elem.width + alter.wnum
-    loc_refval = alter.refval.get(tab_b_elem.descr, tab_b_elem.refval * alter.refmul)
-    loc_scale = tab_b_elem.scale + alter.scale
+        loc_refval = alter.refval.get(tab_b_elem.descr, tab_b_elem.refval * alter.refmul)
+        loc_scale = tab_b_elem.scale + alter.scale
     if rval == all_one(loc_width) and (tab_b_elem.descr < 31000
                                        or tab_b_elem.descr >= 31020):
         # First, test if all bits are set, which usually means "missing value".
@@ -230,12 +236,18 @@ def num2rval(tab_b_elem, alter, value):
         # If alter is None, we make a new, empty object for default values.
         alter = AlterState()
     # Alter = {'wnum':0, 'wchr':0, 'refval':0, 'scale':0, 'assoc':0}
-    if tab_b_elem.typ == TabBType.STRING:
-        loc_width = alter.wchr or tab_b_elem.width
+    if tab_b_elem.typ == TabBType.CODE or tab_b_elem.typ == TabBType.FLAG:
+        loc_width = tab_b_elem.width
+        loc_refval = tab_b_elem.refval
+        loc_scale = tab_b_elem.scale
+    elif tab_b_elem.typ == TabBType.STRING and alter.wchr:
+        loc_width = alter.wchr
+        loc_refval = tab_b_elem.refval
+        loc_scale = tab_b_elem.scale
     else:
         loc_width = tab_b_elem.width + alter.wnum
-    loc_refval = alter.refval.get(tab_b_elem.descr, tab_b_elem.refval * alter.refmul)
-    loc_scale = tab_b_elem.scale + alter.scale
+        loc_refval = alter.refval.get(tab_b_elem.descr, tab_b_elem.refval * alter.refmul)
+        loc_scale = tab_b_elem.scale + alter.scale
     if value is None and (tab_b_elem.descr < 31000 or tab_b_elem.descr >= 31020):
         # First, for "missing value" set all bits to 1.
         # The delayed replication and repetition descr are special cases.
@@ -257,9 +269,9 @@ def num2rval(tab_b_elem, alter, value):
     else:
         rval = value
 
-    logger.debug("EVAL-N  %06d: typ:%s width:%d ref:%d scal:%d%+d val:(%s)->(%s)",
-                 tab_b_elem.descr, tab_b_elem.typ, loc_width, loc_refval,
-                 tab_b_elem.scale, alter.scale, value, str(rval))
+    logger.debug("EVAL-N  %06d: typ:%s width:%d>%d ref:%d scal:%d%+d val:(%s)->(%s)",
+                 tab_b_elem.descr, tab_b_elem.typ, tab_b_elem.width, loc_width,
+                 loc_refval, tab_b_elem.scale, alter.scale, value, str(rval))
 
     return rval, loc_width
 
