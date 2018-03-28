@@ -83,7 +83,7 @@ def prep_oper(subset, descr):
         3: fun_03_w,  # Set of new reference values
         4: fun_04,  # Add associated field, shall be followed by 031021
         5: fun_05_w,  # Signify with characters, plain language text as returned value
-        6: fun_fail,  # Length of local descriptor
+        6: fun_noop,  # Length of local descriptor
         7: fun_07,  # Change scale, reference, width
         8: fun_08,  # Change data width for characters
         9: fun_09,  # IEEE floating point representation
