@@ -19,18 +19,18 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 Collection of functions handling bits and bytes.
 
 Created on Oct 28, 2016
 
 @author: amaul
-'''
+"""
 
 import datetime
 import logging
 import struct
-from errors import BufrDecodeError, BufrEncodeError
+from errors import BufrDecodeError, BufrEncodeError, BufrTableError
 from bufr_types import AlterState, TabBType
 
 logger = logging.getLogger("trollbufr")
@@ -179,8 +179,8 @@ def rval2num(tab_b_elem, alter, rval):
         loc_width = tab_b_elem.width
         loc_refval = tab_b_elem.refval
         loc_scale = tab_b_elem.scale
-    elif tab_b_elem.typ == TabBType.STRING and alter.wchr:
-        loc_width = alter.wchr
+    elif tab_b_elem.typ == TabBType.STRING:
+        loc_width = alter.wchr or tab_b_elem.width
         loc_refval = tab_b_elem.refval
         loc_scale = tab_b_elem.scale
     else:
@@ -240,8 +240,8 @@ def num2rval(tab_b_elem, alter, value):
         loc_width = tab_b_elem.width
         loc_refval = tab_b_elem.refval
         loc_scale = tab_b_elem.scale
-    elif tab_b_elem.typ == TabBType.STRING and alter.wchr:
-        loc_width = alter.wchr
+    elif tab_b_elem.typ == TabBType.STRING:
+        loc_width = alter.wchr or tab_b_elem.width
         loc_refval = tab_b_elem.refval
         loc_scale = tab_b_elem.scale
     else:
@@ -509,17 +509,20 @@ def get_descr_list(tables, desc3):
     """List all expanded descriptors."""
     desc_list = []
     stack = [(desc3, 0)]
-    while stack:
-        dl, di = stack.pop()
-        while di < len(dl):
-            if descr_is_nil(dl[di]):
-                di += 1
-            elif descr_is_data(dl[di]) or descr_is_loop(dl[di]) or descr_is_oper(dl[di]):
-                desc_list.append(dl[di])
-                di += 1
-            elif descr_is_seq(dl[di]):
-                desc_list.append(dl[di])
-                stack.append((dl, di + 1))
-                dl = tables.tab_d[dl[di]]
-                di = 0
+    try:
+        while stack:
+            dl, di = stack.pop()
+            while di < len(dl):
+                if descr_is_nil(dl[di]):
+                    di += 1
+                elif descr_is_data(dl[di]) or descr_is_loop(dl[di]) or descr_is_oper(dl[di]):
+                    desc_list.append(dl[di])
+                    di += 1
+                elif descr_is_seq(dl[di]):
+                    desc_list.append(dl[di])
+                    stack.append((dl, di + 1))
+                    dl = tables.tab_d[dl[di]]
+                    di = 0
+    except KeyError as e:
+        raise BufrTableError("Unknown descriptor: {}".format(e))
     return desc_list
