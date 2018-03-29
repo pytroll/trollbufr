@@ -26,7 +26,7 @@ Created on Nov 17, 2016
 
 @author: amaul
 """
-from bitstring import Bits, BitStream
+from bitstring import Bits, BitStream, ConstBitStream
 import six
 
 
@@ -34,12 +34,17 @@ class Blob(object):
 
     _data = None
 
-    def __init__(self, bin_data=None):
-        """Initialising the class with an octet array (type string)"""
+    def __init__(self, bin_data=None, rw=False):
+        """Initialising the class with an byte (octet) array or make a new, empty one.
+        :param bin_data: Byte array.
+        :param rw: If bin_data is set, make it read/write-able, otherwise it's read-only.
+        """
         if bin_data is None:
             self._data = BitStream()
-        else:
+        elif rw:
             self._data = BitStream(bytes=bin_data)
+        else:
+            self._data = ConstBitStream(bytes=bin_data)
         self.reset()
 
     def __str__(self):
