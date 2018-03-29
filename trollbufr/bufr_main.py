@@ -47,7 +47,7 @@ def read_bufr_data(args):
         fh_out = sys.stdout
     bufr = Bufr(args.tables_type, args.tables_path)
     for fn_in in args.in_file:
-        print("FILE\t%s" % fn_in, file=fh_out)
+        print("FILE\t%s" % os.path.basename(fn_in), file=fh_out)
         i = 0
         for blob, size, header in load_file.next_bufr(fn_in):
             if args.bulletin is not None and i != args.bulletin:
@@ -144,14 +144,17 @@ def write_bufr_json(args):
             bufr_i += 1
             if args.bulletin is not None and bufr_i != args.bulletin:
                 continue
+            json_data.append({"heading": header,
+                              "file": os.path.basename(fn_in),
+                              "index": bufr_i,
+                              })
             try:
                 json_bufr = bufr.decode(blob, load_tables=True)
             except StandardError as e:
-                logger.exception(e)
-            json_data.append({"heading": header,
-                              "file": fn_in,
-                              "index": bufr_i,
-                              "bufr": json_bufr})
+                logger.error(e, exc_info=1 and logger.isEnabledFor(logging.DEBUG))
+                json_data[-1]["error"] = str(e)
+            else:
+                json_data[-1]["bufr"] = json_bufr
     import json
     out_fh = open(args.out_file, "wb") or sys.stdout
     with out_fh as fh_out:
@@ -167,7 +170,7 @@ def read_bufr_desc(args):
     except:
         fh_out = sys.stdout
     for fn_in in args.in_file:
-        print("FILE\t%s" % fn_in, file=fh_out)
+        print("FILE\t%s" % os.path.basename(fn_in), file=fh_out)
         i = 0
         for blob, size, header in load_file.next_bufr(fn_in):
             if args.bulletin is not None and i != args.bulletin:
