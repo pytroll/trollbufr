@@ -117,7 +117,7 @@ def decode_sect1(bin_data, offset, edition=4):
             "uint:24, uint:8, uint:8, uint:8, uint:8, bool, pad:7, uint:8, uint:8, uint:8, uint:8, bytes:5"
             ),
         4: (("length", "master", "center", "subcenter", "update", "sect2", "cat", "cat_int", "cat_loc", "mver", "lver", "datetime"),
-            "uint:24, uint:8, uint:16, uint:16, uint:8, bool, pad:7, uint:8, uint:8, uint:8, uint:8, uint:8, bytes:9"
+            "uint:24, uint:8, uint:16, uint:16, uint:8, bool, pad:7, uint:8, uint:8, uint:8, uint:8, uint:8, bytes:7"
             ),
     }
     vals = bin_data.readlist(key_offs[edition][1])
@@ -126,7 +126,7 @@ def decode_sect1(bin_data, offset, edition=4):
     l = rd.pop("length")
     if bin_data.get_point() < offset + l:
         rd["sect1_local_use"] = bin_data.readlist("hex:8," * (offset + l - bin_data.get_point()))
-        if rd["sect1_local_use"] == ["00"]:
+        if edition == 3 and rd["sect1_local_use"] == ["00"]:
             rd.pop("sect1_local_use")
     bin_data.reset(offset + l)
     return offset + l, l, rd
