@@ -56,7 +56,7 @@ def eval_oper(subset, descr):
         24: fun_24_r,  # First-order statistical values follow / marker operator
         25: fun_25_r,  # Difference statistical values follow / marker operator
         32: fun_fail,  # Replaced/retained vaules follow / marker operator
-        35: fun_35_r,  # Cancel backward data reference
+        35: fun_35,  # Cancel backward data reference
         36: fun_36_r,  # Define data present bit-map
         37: fun_37_r,  # Use data present bit-map / Cancel use data present bit-map
         41: fun_fail,  # Define event / Cancel event
@@ -90,11 +90,11 @@ def prep_oper(subset, descr):
         21: fun_21,  # Data not present
         22: fun_noop,  # Quality Assessment Information
         23: fun_fail,  # Substituted values operator / Substituted values marker
-        24: fun_fail,  # First-order statistical values follow / marker operator
-        25: fun_fail,  # Difference statistical values follow / marker operator
+        24: fun_24_w,  # First-order statistical values follow / marker operator
+        25: fun_25_w,  # Difference statistical values follow / marker operator
         32: fun_fail,  # Replaced/retained vaules follow / marker operator
-        35: fun_fail,  # Cancel backward data reference
-        36: fun_noop,  # Define data present bit-map
+        35: fun_35,  # Cancel backward data reference
+        36: fun_36_w,  # Define data present bit-map
         37: fun_37_w,  # Use data present bit-map / Cancel use data present bit-map
         41: fun_fail,  # Define event / Cancel event
         42: fun_fail,  # Define conditioning event / Cancel conditioning event
@@ -312,29 +312,21 @@ def fun_statistic_write(subset, descr, an):
     logger.debug("OP %d", descr)
     if an == 0:
         """Statistical values follow."""
-        en = subset._tables.tab_c.get(descr, ("Operator",))
-        # Local return value: long name of this operator.
-        l_rval = DescrDataEntry(descr, "OPR", en[0], None)
-
+        # Filter back-references by bitmap
         subset._backref_stack = [subset._backref_record[i]
                                  for i in range(len(subset._bitmap) - 1, 0, -1)
-                                 if subset._bitmap[i] == 0]
+                                 if subset._bitmap[i][0] == 0]
     elif an == 255:
         """Statistical values marker operator."""
         bar = subset._backref_stack.pop()
-        foo = fun.get_rval(subset._blob,
-                           subset.is_compressed,
-                           subset.subs_num,
-                           tab_b_elem=bar[0],
-                           alter=bar[1])
-        v = fun.rval2num(bar[0], bar[1], foo)
-        l_rval = DescrDataEntry(descr, None, v, bar[0])
+        subset.add_val(subset._blob, subset._vl, subset._vi, tab_b_elem=bar[0], alter=bar[1])
+        subset._vi += 1
     else:
         raise BufrDecodeError("Unknown operator '%d'!", descr)
-    return l_rval
+    return None
 
 
-def fun_35_r(subset, descr):
+def fun_35(subset, descr):
     """Cancel backward data reference."""
     if descr == 235000:
         subset._backref_record = []
@@ -362,6 +354,19 @@ def fun_36_r(subset, descr):
     return l_rval
 
 
+def fun_36_w(subset, _):
+    """Define data present bit-map."""
+    # The current index _vi shall point to a "bitmap" list
+    if subset.is_compressed:
+        subset._bitmap = fun.mk_value_list(subset._vl, subset._vi)[0]
+    else:
+        subset._bitmap = subset._vl[subset._vi]
+    # Pause recording back-references
+    # TODO: Is this really required?
+    subset._do_backref_record = False
+    return None
+
+
 def fun_37_r(subset, descr):
     """Use (237000) or cancel use (237255) defined data present bit-map."""
     if descr == 237000:
@@ -371,11 +376,21 @@ def fun_37_r(subset, descr):
     return l_rval
 
 
-def fun_37_w(subset, _):
-    """Skip a bitmap list if one is present in the json data set."""
-    # FIXME: the isinstance propably works only in compressed bufr.
-    if isinstance(subset._vl[0][subset._vi], (list, tuple)):
-        subset._vi += 1
+def fun_37_w(subset, descr):
+    """Use (237000) or cancel use (237255) defined data present bit-map.
+
+    Skip a bitmap list if one is present in the json data set.
+    """
+    if descr == 237000:
+        if ((subset.is_compressed
+                 and isinstance(subset._vl[0][subset._vi], (list, tuple)))
+                or
+                (not subset.is_compressed
+                 and isinstance(subset._vl[subset._vi], (list, tuple)))
+                ):
+            subset._vi += 1
+    elif descr == 237255:
+        subset._bitmap = []
     return None
 
 

@@ -403,6 +403,8 @@ class SubsetWriter():
                         self._vi += 1
                     elem_b = self._tables.tab_b[self._dl[self._di]]
                     self.add_val(self._blob, self._vl, self._vi, tab_b_elem=elem_b, alter=self._alter)
+                    if self._do_backref_record:
+                        self._backref_record.append((elem_b, deepcopy(self._alter)))
                     self._di += 1
                     self._vi += 1
 

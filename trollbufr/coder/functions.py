@@ -36,16 +36,6 @@ from bufr_types import AlterState, TabBType
 logger = logging.getLogger("trollbufr")
 
 
-def str2num(octets):
-    """Convert all characters from octets (high->low) to int"""
-    v = 0
-    i = len(octets) - 1
-    for b in octets:
-        v |= ord(b) << 8 * i
-        i -= 1
-    return v
-
-
 def octets2num(bin_data, offset, count):
     """Convert character slice of length count from bin_data (high->low) to int.
 
@@ -118,6 +108,7 @@ def cset2octets(bin_data, loc_width, subs_num, btyp):
     """
     min_val = bin_data.read_bits(loc_width)
     cwidth = bin_data.read_bits(6)
+    n = None
     if btyp == TabBType.STRING:
         cwidth *= 8
     if cwidth == 0 or min_val == all_one(loc_width):
@@ -132,8 +123,8 @@ def cset2octets(bin_data, loc_width, subs_num, btyp):
         else:
             v = min_val + n
         bin_data.read_skip(cwidth * (subs_num[1] - subs_num[0] - 1))
-        logger.debug("CSET  subnum %s  min_val %d  cwidth %d  loc_width %d  cval %d  rval %d",
-                     subs_num, min_val, cwidth, loc_width, n, v)
+    logger.debug("CSET  subnum %s  loc_width %d  min_val %d  cwidth %d  cval %s  rval %d",
+                 subs_num, loc_width, min_val, cwidth, n, v)
     return v
 
 
@@ -288,7 +279,7 @@ def num2cval(tab_b_elem, alter, fix_width, value_list):
     :return:  loc_width, min_value, min_width, recal_val
     """
     rval_list = []
-    if not any(value_list) or max(value_list) == min(value_list):
+    if not any(True for x in value_list if x is not None) or max(value_list) == min(value_list):
         # All values are "missing", or all are equal
         if tab_b_elem and alter:
             min_value, loc_width = num2rval(tab_b_elem, alter, value_list[0])
@@ -387,18 +378,7 @@ def add_val_comp(blob, value_list, value_list_idx, tab_b_elem=None, alter=None, 
     """
     if tab_b_elem is None and fix_width is None:
         raise BufrEncodeError("Can't determine width.")
-    if isinstance(value_list, (list, tuple)):
-        # Build a list of this value from all subsets.
-        try:
-            val_l = [x[value_list_idx] for x in value_list]
-        except StandardError as e:
-            logger.error("%d # %s", value_list_idx, value_list)
-            raise e
-    else:
-        # If value_list is not a list but a simple value (e.g.: int),
-        # take value_list_idx as the numer of subsets and multiply them.
-        # --> Same value for all subsets.
-        val_l = [value_list] * value_list_idx
+    val_l = mk_value_list(value_list, value_list_idx)
     if tab_b_elem is not None and (31000 <= tab_b_elem.descr < 32000):
         # Replication/repetition descriptor (group 31) is never altered.
         alter = None
@@ -414,6 +394,23 @@ def add_val_comp(blob, value_list, value_list_idx, tab_b_elem=None, alter=None, 
         blob.write_uint(min_width, 6)
         for value in recal_val:
             blob.write_uint(value, min_width)
+
+
+def mk_value_list(value_list, value_list_idx):
+    """Make a list of values from all subsets."""
+    if isinstance(value_list, (list, tuple)):
+        # Build a list of this value from all subsets.
+        try:
+            val_l = [x[value_list_idx] for x in value_list]
+        except StandardError as e:
+            logger.error("%d # %s", value_list_idx, value_list)
+            raise e
+    else:
+        # If value_list is not a list but a simple value (e.g.: int),
+        # take value_list_idx as the numer of subsets and multiply them.
+        # --> Same value for all subsets.
+        val_l = [value_list] * value_list_idx
+    return val_l
 
 
 def all_one(x):
@@ -506,7 +503,12 @@ def descr_is_seq(desc):
 
 
 def get_descr_list(tables, desc3):
-    """List all expanded descriptors."""
+    """List all expanded descriptors.
+
+    :param tables: Table-set.
+    :param desc3: list of descriptors to expand.
+    :return: desc_list, has_backref
+    """
     desc_list = []
     stack = [(desc3, 0)]
     try:
@@ -525,4 +527,7 @@ def get_descr_list(tables, desc3):
                     di = 0
     except KeyError as e:
         raise BufrTableError("Unknown descriptor: {}".format(e))
-    return desc_list
+    has_backref = any(True
+                      for d in desc_list
+                      if 222000 <= d < 240000)
+    return desc_list, has_backref

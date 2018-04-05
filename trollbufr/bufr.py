@@ -153,7 +153,7 @@ class Bufr(object):
     def get_descr_full(self):
         """List descriptors, with unit and name/description"""
         desc_text = []
-        dl = get_descr_list(self._tables, self._desc)
+        dl, _ = get_descr_list(self._tables, self._desc)
         di = 0
         while di < len(dl):
             if descr_is_nil(dl[di]):
@@ -217,10 +217,7 @@ class Bufr(object):
         subset = None
         self._blob.reset(self._data_s)
         # Determine if descriptors need recording for back-reference operator
-        self._desc_exp = get_descr_list(self._tables, self._desc)
-        self._has_backref_oper = any(True
-                                     for d in self._desc_exp
-                                     if 222000 <= d < 240000)
+        self._desc_exp, self._has_backref_oper = get_descr_list(self._tables, self._desc)
         logger.info("BUFR START")
         while i < self._subsets:
             logger.info("SUBSET #%d", i)
@@ -493,6 +490,8 @@ class Bufr(object):
         self._subsets = sect_meta['subsets']
         self._compressed = sect_meta['comp']
         self._desc = sect_meta['descr']
+        # Determine if descriptors need recording for back-reference operator
+        _, has_backref_oper = get_descr_list(self._tables, self._desc)
         #
         # Section 4
         #
@@ -502,7 +501,8 @@ class Bufr(object):
                                      self._desc,
                                      self._compressed,
                                      self._subsets,
-                                     edition=self._edition)
+                                     edition=self._edition,
+                                     has_backref=has_backref_oper)
         sect_start[sect_i] = sect.encode_sect4(bin_data,
                                                self._edition)
         logger.debug("SECT %d start:%d", sect_i, sect_start[sect_i])

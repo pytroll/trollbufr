@@ -81,7 +81,7 @@ def next_bufr(path=None, bin_data=None):
         offs = bstart
         # Read size of bufr
         offs += 4
-        size = f.str2num(bin_data[offs: offs + 3])
+        offs, size = f.octets2num(bin_data, offs, 3)
         # Set end of bufr and skip to there
         bend = bstart + size
         offs = bend
