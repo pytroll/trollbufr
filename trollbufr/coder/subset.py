@@ -30,9 +30,8 @@ Created on Oct 28, 2016
 """
 import functions as fun
 import operator as op
-from copy import deepcopy
 from errors import BufrDecodeError
-from bufr_types import DescrDataEntry, AlterState
+from bufr_types import DescrDataEntry, AlterState,BackrefRecord
 import logging
 
 logger = logging.getLogger("trollbufr")
@@ -64,7 +63,7 @@ class Subset(object):
         # Recording descriptors for back-referencing
         self._do_backref_record = has_backref
         # Recorder for back-referenced descriptors
-        self._backref_record = []
+        self._backref_record = BackrefRecord()
         # Last octet in BUFR
         self._data_e = data_end
         # Variable names for positioning/current working list in descriptor/value lists:
@@ -167,7 +166,7 @@ class Subset(object):
                                        self._alter)
                     v = fun.rval2num(elem_b, self._alter, foo)
                     if self._do_backref_record:
-                        self._backref_record.append((elem_b, deepcopy(self._alter)))
+                        self._backref_record.append(elem_b, self._alter)
                     # This is the main yield
                     yield DescrDataEntry(elem_b.descr, mark, v, qual)
 
@@ -312,7 +311,7 @@ class SubsetWriter():
         # Recording descriptors for back-referencing
         self._do_backref_record = has_backref
         # Recorder for back-referenced descriptors
-        self._backref_record = []
+        self._backref_record = BackrefRecord()
         # Variable names for positioning/current working list in descriptor/value lists:
         # dl : current descriptor list
         # di : index for current descriptor list
@@ -328,12 +327,6 @@ class SubsetWriter():
 
     def __str__(self):
         return "Subset #%d/%d, compression:%s" % (self.subs_num, self.is_compressed)
-
-    def _stack_append_reg(self):
-        pass
-
-    def _stack_append_comp(self):
-        pass
 
     def process(self, subset_list=[]):
         """ """
@@ -404,7 +397,7 @@ class SubsetWriter():
                     elem_b = self._tables.tab_b[self._dl[self._di]]
                     self.add_val(self._blob, self._vl, self._vi, tab_b_elem=elem_b, alter=self._alter)
                     if self._do_backref_record:
-                        self._backref_record.append((elem_b, deepcopy(self._alter)))
+                        self._backref_record.append(elem_b, self._alter)
                     self._di += 1
                     self._vi += 1
 

@@ -26,6 +26,7 @@ Created on Mar 13, 2018
 
 @author: amaul
 """
+from copy import deepcopy
 
 from collections import namedtuple
 DescrDataEntry = namedtuple("DescrDataEntry", "descr mark value quality")
@@ -97,3 +98,57 @@ class AlterState(object):
         """ Add width for associated quality field. A stack, always use last value."""
         self.ieee = 0
         """ 0|32|64 All numerical values encoded as IEEE floating point number."""
+
+
+class BackrefRecord(object):
+    """Records descriptor/alter objects for later re-play with applied bitmaps."""
+
+    def __init__(self):
+        self.restart()
+
+    def restart(self):
+        """Clear record of descriptor/alter pairs.
+
+        Requires appending new pairs before a bitmap can be applied.
+        """
+        # Recorder for back-referenced descriptors
+        self._backref_record = []
+        # Stack for re-play
+        self._backref_stack = []
+        # Index for stack
+        self._stack_idx = -1
+
+    def __str__(self):
+        return "Record *%d, Stack *%d, Idx %d".format(
+            len(self._backref_record),
+            len(self._backref_stack),
+            self._stack_idx)
+
+    def append(self, descr, alter):
+        """Append descriptor and alter object to the record."""
+        self._backref_record.append((descr, deepcopy(alter)))
+
+    def apply(self, bitmap):
+        """Apply bitmap to record, creating a stack of descriptor/alter pairs."""
+        self._backref_stack = [self._backref_record[i]
+                               for i in range(len(bitmap))
+                               if bitmap[i] == 0]
+        self._stack_idx = 0
+
+    def next(self):
+        """Return next descriptor/alter pair from stack."""
+        if self._stack_idx >= len(self._backref_stack):
+            print self._stack_idx, len(self._backref_stack), self._backref_stack
+            raise IndexError()
+        r = self._backref_stack[self._stack_idx]
+        self._stack_idx += 1
+        return r
+
+    def reset(self):
+        """Reset stack index to start, for "re-use bitmap"."""
+        self._stack_idx = 0
+
+    def renew(self):
+        """Clear stack (created from bitmap), for "cancel use bitmap"."""
+        self._stack_idx = -1
+        self._backref_stack = []
