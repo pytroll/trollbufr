@@ -30,9 +30,8 @@ Created on Oct 28, 2016
 """
 import functions as fun
 import operator as op
-from copy import deepcopy
 from errors import BufrDecodeError
-from bufr_types import DescrDataEntry, AlterState
+from bufr_types import DescrDataEntry, AlterState, BackrefRecord
 import logging
 
 logger = logging.getLogger("trollbufr")
@@ -64,7 +63,7 @@ class Subset(object):
         # Recording descriptors for back-referencing
         self._do_backref_record = has_backref
         # Recorder for back-referenced descriptors
-        self._backref_record = []
+        self._backref_record = BackrefRecord()
         # Last octet in BUFR
         self._data_e = data_end
         # Variable names for positioning/current working list in descriptor/value lists:
@@ -167,55 +166,30 @@ class Subset(object):
                                        self._alter)
                     v = fun.rval2num(elem_b, self._alter, foo)
                     if self._do_backref_record:
-                        self._backref_record.append((elem_b, deepcopy(self._alter)))
+                        self._backref_record.append(elem_b, self._alter)
                     # This is the main yield
                     yield DescrDataEntry(elem_b.descr, mark, v, qual)
 
                 elif fun.descr_is_loop(self._dl[self._di]):
                     """Replication descriptor, loop/iterator, replication or repetition"""
-                    # Decode loop-descr:
-                    # amount of descr
-                    lm = self._dl[self._di] // 1000 - 100
-                    # number of replication
-                    ln = self._dl[self._di] % 1000
-                    # Repetition?
-                    is_repetition = False
                     loop_cause = self._dl[self._di]
-                    # Increase di to start-of-loop
-                    self._di += 1
-                    if ln == 0:
-                        # Decode next descr for loop-count
-                        if self._dl[self._di] < 30000 or self._dl[self._di] >= 40000:
-                            raise BufrDecodeError("No count for  delayed loop!")
-                        elem_b = self._tables.tab_b[self._dl[self._di]]
-                        self._di += 1
-                        ln = fun.get_rval(self._blob,
-                                          self.is_compressed,
-                                          self.subs_num,
-                                          fix_width=elem_b.width)
-                        # Descriptors 31011+31012 mean repetition, not replication
-                        is_repetition = 31010 <= elem_b.descr <= 31012
-                        logger.debug("%s %d %d -> %d from %06d",
-                                     "REPT" if is_repetition else "LOOP", lm, 0, ln, elem_b.descr)
-                        if ln == 255:
-                            ln = 0
-                    else:
-                        logger.debug("LOOP %d %d" % (lm, ln))
-                    loop_count = ln
+                    # Decode loop-descr:
+                    loop_amount, loop_count, is_repetition = self.eval_loop_descr()
                     # Current list on stack (di points after looped descr)
-                    logger.debug("PUSH jump -> *%d %d..%d", len(self._dl), self._di + lm, self._de)
+                    logger.debug("PUSH jump -> *%d %d..%d", len(self._dl), self._di + loop_amount, self._de)
                     if is_repetition:
-                        if ln:
-                            stack.append((self._dl, self._di + lm, self._de, "REP END"))
-                            stack.append((self._dl, self._di, self._di + lm, "REP %d" % ln))
+                        if loop_count:
+                            stack.append((self._dl, self._di + loop_amount, self._de, "REP END"))
+                            stack.append((self._dl, self._di, self._di + loop_amount, "REP %d" % loop_count))
                         else:
-                            stack.append((self._dl, self._di + lm, self._de, "REP NIL"))
+                            stack.append((self._dl, self._di + loop_amount, self._de, "REP NIL"))
                     else:
-                        stack.append((self._dl, self._di + lm, self._de, "RPL %s" % ("END" if ln else "NIL")))
+                        ln = loop_count
+                        stack.append((self._dl, self._di + loop_amount, self._de, "RPL %s" % ("END" if ln else "NIL")))
                         while ln:
                             # N*list on stack
-                            logger.debug("PUSH loop -> *%d %d..%d", len(self._dl), self._di, self._di + lm)
-                            stack.append((self._dl, self._di, self._di + lm, "RPL %d" % ln))
+                            logger.debug("PUSH loop -> *%d %d..%d", len(self._dl), self._di, self._di + loop_amount)
+                            stack.append((self._dl, self._di, self._di + loop_amount, "RPL %d" % ln))
                             ln -= 1
                     yield DescrDataEntry(None,
                                          "%s %06d *%d" % (
@@ -257,6 +231,39 @@ class Subset(object):
         self.inprogress = False
         logger.debug("SUBSET END (%s)" % self._blob)
         raise StopIteration
+
+    def eval_loop_descr(self):
+        """Evaluate descriptor for replication/repetition.
+
+        :return: amount of descriptors, number of repeats, is_repetition
+        """
+        # amount of descr
+        loop_amnt = self._dl[self._di] // 1000 - 100
+        # number of replication
+        loop_num = self._dl[self._di] % 1000
+        # Repetition?
+        is_rep = False
+        # Increase di to start-of-loop
+        self._di += 1
+        if loop_num == 0:
+            # Decode next descr for loop-count
+            if self._dl[self._di] < 30000 or self._dl[self._di] >= 40000:
+                raise BufrDecodeError("No count for  delayed loop!")
+            elem_b = self._tables.tab_b[self._dl[self._di]]
+            loop_num = fun.get_rval(self._blob,
+                                    self.is_compressed,
+                                    self.subs_num,
+                                    fix_width=elem_b.width)
+            # Descriptors 31011+31012 mean repetition, not replication
+            is_rep = 31010 <= elem_b.descr <= 31012
+            logger.debug("%s %d %d -> %d from %06d",
+                         "REPT" if is_rep else "LOOP", loop_amnt, 0, loop_num, elem_b.descr)
+            self._di += 1
+            if loop_num == 255:
+                loop_num = 0
+        else:
+            logger.debug("LOOP %d %d" % (loop_amnt, loop_num))
+        return loop_amnt, loop_num, is_rep
 
     def _read_refval(self):
         """Set new reference values.
@@ -312,7 +319,7 @@ class SubsetWriter():
         # Recording descriptors for back-referencing
         self._do_backref_record = has_backref
         # Recorder for back-referenced descriptors
-        self._backref_record = []
+        self._backref_record = BackrefRecord()
         # Variable names for positioning/current working list in descriptor/value lists:
         # dl : current descriptor list
         # di : index for current descriptor list
@@ -328,12 +335,6 @@ class SubsetWriter():
 
     def __str__(self):
         return "Subset #%d/%d, compression:%s" % (self.subs_num, self.is_compressed)
-
-    def _stack_append_reg(self):
-        pass
-
-    def _stack_append_comp(self):
-        pass
 
     def process(self, subset_list=[]):
         """ """
@@ -404,12 +405,13 @@ class SubsetWriter():
                     elem_b = self._tables.tab_b[self._dl[self._di]]
                     self.add_val(self._blob, self._vl, self._vi, tab_b_elem=elem_b, alter=self._alter)
                     if self._do_backref_record:
-                        self._backref_record.append((elem_b, deepcopy(self._alter)))
+                        self._backref_record.append(elem_b, self._alter)
                     self._di += 1
                     self._vi += 1
 
                 elif fun.descr_is_loop(self._dl[self._di]):
                     """Replication/repetition."""
+                    loop_cause = self._dl[self._di]
                     # Decode loop-descr:
                     # amount of descr
                     lm = self._dl[self._di] // 1000 - 100
@@ -418,7 +420,6 @@ class SubsetWriter():
                     # Repetition?
                     is_repetition = False
                     loop_count, loop_lists = extract_loop_list(self._vl, self._vi)
-                    loop_cause = self._dl[self._di]
                     # Increase di to start-of-loop
                     self._di += 1
                     if ln == 0:

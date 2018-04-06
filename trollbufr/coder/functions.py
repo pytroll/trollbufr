@@ -109,22 +109,25 @@ def cset2octets(bin_data, loc_width, subs_num, btyp):
     min_val = bin_data.read_bits(loc_width)
     cwidth = bin_data.read_bits(6)
     n = None
+    v = None
     if btyp == TabBType.STRING:
         cwidth *= 8
-    if cwidth == 0 or min_val == all_one(loc_width):
-        # All equal or all missing
-        v = min_val
-    else:
-        # Data compressed
-        bin_data.read_skip(cwidth * subs_num[0])
-        n = bin_data.read_bits(cwidth)
-        if n == all_one(cwidth):
-            v = all_one(loc_width)
+    try:
+        if cwidth == 0 or min_val == all_one(loc_width):
+            # All equal or all missing
+            v = min_val
         else:
-            v = min_val + n
-        bin_data.read_skip(cwidth * (subs_num[1] - subs_num[0] - 1))
-    logger.debug("CSET  subnum %s  loc_width %d  min_val %d  cwidth %d  cval %s  rval %d",
-                 subs_num, loc_width, min_val, cwidth, n, v)
+            # Data compressed
+            bin_data.read_skip(cwidth * subs_num[0])
+            n = bin_data.read_bits(cwidth)
+            if n == all_one(cwidth):
+                v = all_one(loc_width)
+            else:
+                v = min_val + n
+            bin_data.read_skip(cwidth * (subs_num[1] - subs_num[0] - 1))
+    finally:
+        logger.debug("CSET  subnum %s  loc_width %d  min_val %d  cwidth %d  cval %s  rval %d",
+                     subs_num, loc_width, min_val, cwidth, n, v)
     return v
 
 

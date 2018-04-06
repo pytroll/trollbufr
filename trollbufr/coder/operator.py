@@ -249,7 +249,6 @@ def fun_21(subset, descr):
 
 def fun_22_r(subset, descr):
     """Quality Assessment Information"""
-    logger.debug("OP %d", descr)
     en = subset._tables.tab_c.get(descr, ("Operator",))
     # An additional rval for operators where no further action is required
     l_rval = DescrDataEntry(descr, "OPR", en[0], None)
@@ -282,19 +281,14 @@ def fun_25_w(subset, descr):
 
 def fun_statistic_read(subset, descr, an):
     """Various operators for statistical values."""
-    logger.debug("OP %d", descr)
     if an == 0:
         """Statistical values follow."""
         en = subset._tables.tab_c.get(descr, ("Operator",))
         # Local return value: long name of this operator.
         l_rval = DescrDataEntry(descr, "OPR", en[0], None)
-
-        subset._backref_stack = [subset._backref_record[i]
-                                 for i in range(len(subset._bitmap) - 1, 0, -1)
-                                 if subset._bitmap[i] == 0]
     elif an == 255:
         """Statistical values marker operator."""
-        bar = subset._backref_stack.pop()
+        bar = subset._backref_record.next()
         foo = fun.get_rval(subset._blob,
                            subset.is_compressed,
                            subset.subs_num,
@@ -309,16 +303,12 @@ def fun_statistic_read(subset, descr, an):
 
 def fun_statistic_write(subset, descr, an):
     """Various operators for statistical values."""
-    logger.debug("OP %d", descr)
     if an == 0:
         """Statistical values follow."""
         # Filter back-references by bitmap
-        subset._backref_stack = [subset._backref_record[i]
-                                 for i in range(len(subset._bitmap) - 1, 0, -1)
-                                 if subset._bitmap[i][0] == 0]
     elif an == 255:
         """Statistical values marker operator."""
-        bar = subset._backref_stack.pop()
+        bar = subset._backref_record.next()
         subset.add_val(subset._blob, subset._vl, subset._vi, tab_b_elem=bar[0], alter=bar[1])
         subset._vi += 1
     else:
@@ -329,8 +319,7 @@ def fun_statistic_write(subset, descr, an):
 def fun_35(subset, descr):
     """Cancel backward data reference."""
     if descr == 235000:
-        subset._backref_record = []
-        subset._do_backref_record = True
+        subset._backref_record.restart()
     return None
 
 
@@ -338,10 +327,7 @@ def fun_36_r(subset, descr):
     """Define data present bit-map."""
     # Evaluate following replication descr.
     subset._di += 1
-    am = subset._dl[subset._di] // 1000 - 100
-    an = subset._dl[subset._di] % 1000
-    # Move to data present indicating descr.
-    subset._di += 1
+    am, an, _ = subset.eval_loop_descr()
     if am != 1 or subset._dl[subset._di] != 31031:
         raise BufrDecodeError("Fault in replication defining bitmap!")
     subset._bitmap = [fun.get_rval(subset._blob,
@@ -349,21 +335,20 @@ def fun_36_r(subset, descr):
                                    subset.subs_num,
                                    fix_width=1)
                       for _ in range(an)]
-    subset._do_backref_record = False
+    subset._backref_record.apply(subset._bitmap)
     l_rval = DescrDataEntry(descr, "BMP DEF", subset._bitmap, None)
     return l_rval
 
 
 def fun_36_w(subset, _):
     """Define data present bit-map."""
-    # The current index _vi shall point to a "bitmap" list
+    # The current index _vi shall point to a "bitmap" list, which shall be a
+    # list of single-item lists, i.e. [[1],[1],[0],[1]]
     if subset.is_compressed:
-        subset._bitmap = fun.mk_value_list(subset._vl, subset._vi)[0]
+        subset._bitmap = [x[0] for x in fun.mk_value_list(subset._vl, subset._vi)[0]]
     else:
-        subset._bitmap = subset._vl[subset._vi]
-    # Pause recording back-references
-    # TODO: Is this really required?
-    subset._do_backref_record = False
+        subset._bitmap = [x[0] for x in subset._vl[subset._vi]]
+    subset._backref_record.apply(subset._bitmap)
     return None
 
 
@@ -371,8 +356,10 @@ def fun_37_r(subset, descr):
     """Use (237000) or cancel use (237255) defined data present bit-map."""
     if descr == 237000:
         l_rval = DescrDataEntry(descr, "BMP USE", subset._bitmap, None)
+        subset._backref_record.reset()
     elif descr == 237255:
         subset._bitmap = []
+        subset._backref_record.renew()
     return l_rval
 
 
@@ -383,14 +370,16 @@ def fun_37_w(subset, descr):
     """
     if descr == 237000:
         if ((subset.is_compressed
-                 and isinstance(subset._vl[0][subset._vi], (list, tuple)))
+             and isinstance(subset._vl[0][subset._vi], (list, tuple)))
                 or
                 (not subset.is_compressed
                  and isinstance(subset._vl[subset._vi], (list, tuple)))
-                ):
+            ):
             subset._vi += 1
+        subset._backref_record.reset()
     elif descr == 237255:
         subset._bitmap = []
+        subset._backref_record.renew()
     return None
 
 
