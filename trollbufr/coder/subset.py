@@ -31,11 +31,7 @@ Created on Oct 28, 2016
 import functions as fun
 import operator as op
 from errors import BufrDecodeError
-<<<<<<< HEAD
 from bufr_types import DescrDataEntry, AlterState, BackrefRecord
-=======
-from bufr_types import DescrDataEntry, AlterState,BackrefRecord
->>>>>>> refs/heads/backref_as_class
 import logging
 
 logger = logging.getLogger("trollbufr")
