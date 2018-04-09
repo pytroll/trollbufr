@@ -119,6 +119,7 @@ class BackrefRecord(object):
         self._stack_idx = -1
 
     def __str__(self):
+<<<<<<< HEAD
         return "Record *{}, Stack *{}, Idx {}".format(
             len(self._backref_record),
             len(self._backref_stack),
@@ -133,6 +134,22 @@ class BackrefRecord(object):
         self._backref_stack = [self._backref_record[len(self._backref_record) - i]
                                for i in range(len(bitmap), 0, -1)
                                if bitmap[len(bitmap) - i] == 0]
+=======
+        return "Record *%d, Stack *%d, Idx %d".format(
+            len(self._backref_record),
+            len(self._backref_stack),
+            self._stack_idx)
+
+    def append(self, descr, alter):
+        """Append descriptor and alter object to the record."""
+        self._backref_record.append((descr, deepcopy(alter)))
+
+    def apply(self, bitmap):
+        """Apply bitmap to record, creating a stack of descriptor/alter pairs."""
+        self._backref_stack = [self._backref_record[i]
+                               for i in range(len(bitmap))
+                               if bitmap[i] == 0]
+>>>>>>> refs/heads/backref_as_class
         self._stack_idx = 0
 
     def next(self):
