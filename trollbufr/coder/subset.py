@@ -232,9 +232,11 @@ class Subset(object):
         logger.debug("SUBSET END (%s)" % self._blob)
         raise StopIteration
 
-    def eval_loop_descr(self):
+    def eval_loop_descr(self, record=True):
         """Evaluate descriptor for replication/repetition.
 
+        :param record: record element descriptors for delayed replication (if 
+                        present) in back reference list, default==True.
         :return: amount of descriptors, number of repeats, is_repetition
         """
         # amount of descr
@@ -248,7 +250,7 @@ class Subset(object):
         if loop_num == 0:
             # Decode next descr for loop-count
             if self._dl[self._di] < 30000 or self._dl[self._di] >= 40000:
-                raise BufrDecodeError("No count for  delayed loop!")
+                raise BufrDecodeError("No count (031YYY) for delayed loop!")
             elem_b = self._tables.tab_b[self._dl[self._di]]
             loop_num = fun.get_rval(self._blob,
                                     self.is_compressed,
@@ -256,6 +258,8 @@ class Subset(object):
                                     fix_width=elem_b.width)
             # Descriptors 31011+31012 mean repetition, not replication
             is_rep = 31010 <= elem_b.descr <= 31012
+            if record and self._do_backref_record:
+                self._backref_record.append(elem_b, None)
             logger.debug("%s %d %d -> %d from %06d",
                          "REPT" if is_rep else "LOOP", loop_amnt, 0, loop_num, elem_b.descr)
             self._di += 1
@@ -431,6 +435,8 @@ class SubsetWriter():
                         self.add_val(self._blob, loop_count or 0, self.subs_num, tab_b_elem=elem_b)
                         # Descriptors 31011+31012 mean repetition, not replication
                         is_repetition = 31010 <= elem_b.descr <= 31012
+                        if self._do_backref_record:
+                            self._backref_record.append(elem_b, None)
                     logger.debug("%s %d * %d->%d from %06d",
                                  "REPT" if is_repetition else "LOOP",
                                  lm, ln, loop_count, loop_cause)

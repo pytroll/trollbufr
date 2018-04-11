@@ -289,6 +289,11 @@ def fun_statistic_read(subset, descr, an):
     elif an == 255:
         """Statistical values marker operator."""
         bar = subset._backref_record.next()
+        
+        # FIXME: bitmap mit nur "1", also keine werte führt zu fehler.
+        # schleife muss richtig ausgewertet werden.
+        # -> bufr/metar_with_2_bias.bufr
+        
         foo = fun.get_rval(subset._blob,
                            subset.is_compressed,
                            subset.subs_num,
@@ -327,7 +332,7 @@ def fun_36_r(subset, descr):
     """Define data present bit-map."""
     # Evaluate following replication descr.
     subset._di += 1
-    am, an, _ = subset.eval_loop_descr()
+    am, an, _ = subset.eval_loop_descr(record=False)
     if am != 1 or subset._dl[subset._di] != 31031:
         raise BufrDecodeError("Fault in replication defining bitmap!")
     subset._bitmap = [fun.get_rval(subset._blob,

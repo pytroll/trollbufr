@@ -126,7 +126,11 @@ class BackrefRecord(object):
 
     def append(self, descr, alter):
         """Append descriptor and alter object to the record."""
-        self._backref_record.append((descr, deepcopy(alter)))
+        if alter is None:
+            alt = AlterState()
+        else:
+            alt = deepcopy(alter)
+        self._backref_record.append((descr, alt))
 
     def apply(self, bitmap):
         """Apply bitmap to record, creating a stack of descriptor/alter pairs."""
@@ -138,8 +142,7 @@ class BackrefRecord(object):
     def next(self):
         """Return next descriptor/alter pair from stack."""
         if self._stack_idx >= len(self._backref_stack):
-            print self._stack_idx, len(self._backref_stack), self._backref_stack
-            raise IndexError()
+            raise StopIteration
         r = self._backref_stack[self._stack_idx]
         self._stack_idx += 1
         return r
