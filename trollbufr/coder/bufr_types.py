@@ -117,6 +117,8 @@ class BackrefRecord(object):
         self._backref_stack = []
         # Index for stack
         self._stack_idx = -1
+        # Recorder is active or paused
+        self._recording = True
 
     def __str__(self):
         return "Record *{}, Stack *{}, Idx {}".format(
@@ -126,6 +128,8 @@ class BackrefRecord(object):
 
     def append(self, descr, alter):
         """Append descriptor and alter object to the record."""
+        if not self._recording:
+            return
         if alter is None:
             alt = AlterState()
         else:
@@ -147,11 +151,17 @@ class BackrefRecord(object):
         self._stack_idx += 1
         return r
 
+    def pause(self, paused=True):
+        """Pause or re-activate recording."""
+        self._recording = not paused
+
     def reset(self):
         """Reset stack index to start, for "re-use bitmap"."""
         self._stack_idx = 0
+        self._recording = True
 
     def renew(self):
         """Clear stack (created from bitmap), for "cancel use bitmap"."""
         self._stack_idx = -1
         self._backref_stack = []
+        self._recording = True

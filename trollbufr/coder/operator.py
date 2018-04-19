@@ -252,6 +252,8 @@ def fun_22_r(subset, descr):
     en = subset._tables.tab_c.get(descr, ("Operator",))
     # An additional rval for operators where no further action is required
     l_rval = DescrDataEntry(descr, "OPR", en[0], None)
+    # Pause back-reference recording
+    subset._backref_record.pause(True)
     return l_rval
 
 
@@ -289,18 +291,16 @@ def fun_statistic_read(subset, descr, an):
     elif an == 255:
         """Statistical values marker operator."""
         bar = subset._backref_record.next()
-        
-        # FIXME: bitmap mit nur "1", also keine werte führt zu fehler.
-        # schleife muss richtig ausgewertet werden.
-        # -> bufr/metar_with_2_bias.bufr
-        
-        foo = fun.get_rval(subset._blob,
-                           subset.is_compressed,
-                           subset.subs_num,
-                           tab_b_elem=bar[0],
-                           alter=bar[1])
-        v = fun.rval2num(bar[0], bar[1], foo)
-        l_rval = DescrDataEntry(descr, None, v, bar[0])
+        if bar:
+            foo = fun.get_rval(subset._blob,
+                               subset.is_compressed,
+                               subset.subs_num,
+                               tab_b_elem=bar[0],
+                               alter=bar[1])
+            v = fun.rval2num(bar[0], bar[1], foo)
+            l_rval = DescrDataEntry(descr, None, v, bar[0])
+        else:
+            l_rval = None
     else:
         raise BufrDecodeError("Unknown operator '%d'!", descr)
     return l_rval
@@ -340,6 +340,7 @@ def fun_36_r(subset, descr):
                                    subset.subs_num,
                                    fix_width=1)
                       for _ in range(an)]
+    logger.debug("APPLY BITMAP (%d) %s",len(subset._bitmap),"".join([str(x) for x in subset._bitmap]))
     subset._backref_record.apply(subset._bitmap)
     l_rval = DescrDataEntry(descr, "BMP DEF", subset._bitmap, None)
     return l_rval
