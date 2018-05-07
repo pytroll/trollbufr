@@ -26,13 +26,13 @@ trollbufr.bufr.Bufr
 
 After decoding the meta-information use the iterator over the subsets.
 
-Each subset is held in an instance of class :class:`~trollbufr.read.Subset`, 
+Each subset is held in an instance of class :class:`~trollbufr.read.Subset`,
 which has the iterator function `next_data()` to iterate over all bin_data elements
 in this subset.
 """
 import coder.load_tables
 import coder.bufr_sect as sect
-from coder.subset import Subset, SubsetWriter
+from coder.subset import SubsetReader, SubsetWriter
 from coder.bdata import Blob
 from coder.functions import (descr_is_data, descr_is_loop, descr_is_oper,
                              descr_is_seq, descr_is_nil, get_descr_list)
@@ -229,13 +229,13 @@ class Bufr(object):
             if self._blob.p >= self._data_e:
                 raise BufrDecodeError("Unexpected end of bin_data section!")
             # Create new Subset object
-            subset = Subset(self._tables,
-                            self._blob,
-                            self._desc,
-                            self._compressed,
-                            self._has_backref_oper,
-                            (i, self._subsets),
-                            self._data_e)
+            subset = SubsetReader(self._tables,
+                                  self._blob,
+                                  self._desc,
+                                  self._compressed,
+                                  self._has_backref_oper,
+                                  (i, self._subsets),
+                                  self._data_e)
             yield subset
             i += 1
             # Padding bits (and to next even byte) for bin_data pointer if necessary

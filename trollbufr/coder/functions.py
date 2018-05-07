@@ -52,7 +52,7 @@ def octets2num(bin_data, offset, count):
     return offset + count, v
 
 
-def get_rval(bin_data, comp, subs_num, tab_b_elem=None, alter=None, fix_width=None, fix_typ=None):
+def calc_width(bin_data, tab_b_elem=None, alter=None, fix_width=None, fix_typ=None):
     """Read a raw value integer from the data section.
 
     The number of bits are either fixed or determined from Tab.B and previous
@@ -92,16 +92,27 @@ def get_rval(bin_data, comp, subs_num, tab_b_elem=None, alter=None, fix_width=No
                          )
     else:
         raise BufrDecodeError("Can't determine width.")
-    if comp:
-        rval = cset2octets(bin_data,
-                           loc_width,
-                           subs_num,
-                           loc_typ or TabBType.LONG)
+    return loc_width, loc_typ
+
+
+def get_val(bin_data, subs_num, tab_b_elem=None, alter=None, fix_width=None, fix_typ=None):
+    loc_width, loc_typ = calc_width(bin_data, tab_b_elem, alter, fix_width, fix_typ)
+    if loc_typ == TabBType.STRING:
+        rval = bin_data.read_bytes(loc_width // 8)
     else:
-        if loc_typ == TabBType.STRING:
-            rval = bin_data.read_bytes(loc_width // 8)
-        else:
-            rval = bin_data.read_bits(loc_width)
+        rval = bin_data.read_bits(loc_width)
+    if fix_width is not None:
+        return rval
+    else:
+        return rval2num(tab_b_elem, alter, rval)
+
+
+def get_val_comp(bin_data, subs_num, tab_b_elem=None, alter=None, fix_width=None, fix_typ=None):
+    loc_width, loc_typ = calc_width(bin_data, tab_b_elem, alter, fix_width, fix_typ)
+    rval = cset2octets(bin_data,
+                       loc_width,
+                       subs_num,
+                       loc_typ or TabBType.LONG)
     if fix_width is not None:
         return rval
     else:
@@ -109,7 +120,7 @@ def get_rval(bin_data, comp, subs_num, tab_b_elem=None, alter=None, fix_width=No
 
 
 def cset2octets(bin_data, loc_width, subs_num, btyp):
-    """Like Blob.read_bits(), but for compressed bin_data.
+    """Like Blob.read_bits(), but for compressed data.
 
     :return: octets
     """
@@ -189,9 +200,9 @@ def rval2num(tab_b_elem, alter, rval):
         loc_refval = alter.refval.get(tab_b_elem.descr, tab_b_elem.refval * alter.refmul)
         loc_scale = tab_b_elem.scale + alter.scale
     if ((tab_b_elem.typ == TabBType.STRING and rval == b"\xff" * (loc_width // 8))
-                or (tab_b_elem.typ != TabBType.STRING and rval == all_one(loc_width)
-                    and (tab_b_elem.descr < 31000 or tab_b_elem.descr >= 31020))
-            ):
+            or (tab_b_elem.typ != TabBType.STRING and rval == all_one(loc_width)
+                and (tab_b_elem.descr < 31000 or tab_b_elem.descr >= 31020))
+        ):
         # First, test if all bits are set, which usually means "missing value".
         # The delayed replication and repetition descr are special nut-cases.
         logger.debug("rval %d ==_(1<<%d)%d    #%06d/%d", rval, loc_width,

@@ -178,11 +178,10 @@ def fun_04(subset, descr):
 def fun_05_r(subset, descr):
     """Signify with characters, plain language text as returned value"""
     an = descr % 1000
-    v = fun.get_rval(subset._blob,
-                     subset.is_compressed,
-                     subset.subs_num,
-                     fix_width=an * 8,
-                     fix_typ=TabBType.STRING)
+    v = subset.get_val(subset._blob,
+                       subset.subs_num,
+                       fix_width=an * 8,
+                       fix_typ=TabBType.STRING)
     logger.debug("OP text -> '%s'", v)
     # Special rval for plain character
     l_rval = DescrDataEntry(descr, None, v, None)
@@ -204,10 +203,9 @@ def fun_05_w(subset, descr):
 def fun_06_r(subset, descr):
     """Length of local descriptor"""
     an = descr % 1000
-    fun.get_rval(subset._blob,
-                 subset.is_compressed,
-                 subset.subs_num,
-                 fix_width=an)
+    subset.get_val(subset._blob,
+                   subset.subs_num,
+                   fix_width=an)
     subset._di += 1
     return None
 
@@ -292,13 +290,11 @@ def fun_statistic_read(subset, descr, an):
         """Statistical values marker operator."""
         bar = subset._backref_record.next()
         if bar:
-            foo = fun.get_rval(subset._blob,
-                               subset.is_compressed,
-                               subset.subs_num,
-                               tab_b_elem=bar[0],
-                               alter=bar[1])
-            v = fun.rval2num(bar[0], bar[1], foo)
-            l_rval = DescrDataEntry(descr, None, v, bar[0])
+            val = subset.get_val(subset._blob,
+                                 subset.subs_num,
+                                 tab_b_elem=bar[0],
+                                 alter=bar[1])
+            l_rval = DescrDataEntry(descr, None, val, bar[0])
         else:
             l_rval = None
     else:
@@ -335,10 +331,9 @@ def fun_36_r(subset, descr):
     am, an, _ = subset.eval_loop_descr(record=False)
     if am != 1 or subset._dl[subset._di] != 31031:
         raise BufrDecodeError("Fault in replication defining bitmap!")
-    subset._bitmap = [fun.get_rval(subset._blob,
-                                   subset.is_compressed,
-                                   subset.subs_num,
-                                   fix_width=1)
+    subset._bitmap = [subset.get_val(subset._blob,
+                                     subset.subs_num,
+                                     fix_width=1)
                       for _ in range(an)]
     logger.debug("APPLY BITMAP (%d) %s", len(subset._bitmap), "".join([str(x) for x in subset._bitmap]))
     subset._backref_record.apply(subset._bitmap)
@@ -376,11 +371,11 @@ def fun_37_w(subset, descr):
     """
     if descr == 237000:
         if ((subset.is_compressed
-             and isinstance(subset._vl[0][subset._vi], (list, tuple)))
-            or
-            (not subset.is_compressed
-                     and isinstance(subset._vl[subset._vi], (list, tuple)))
-            ):
+                 and isinstance(subset._vl[0][subset._vi], (list, tuple)))
+                or
+                (not subset.is_compressed
+                 and isinstance(subset._vl[subset._vi], (list, tuple)))
+                ):
             subset._vi += 1
         subset._backref_record.reset()
     elif descr == 237255:

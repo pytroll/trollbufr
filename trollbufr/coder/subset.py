@@ -37,7 +37,7 @@ import logging
 logger = logging.getLogger("trollbufr")
 
 
-class Subset(object):
+class SubsetReader(object):
     # Numbering of this subset (this, total)
     subs_num = (-1, -1)
     # Compression
@@ -76,6 +76,8 @@ class Subset(object):
         self._di = self._de = 0
         self._vl = []
         self._vi = 0
+        # Method for reading a value from the bistream, depends on compression.
+        self.get_val = fun.get_val_comp if self.is_compressed else fun.get_val
 
     def __str__(self):
         return "Subset #%d/%d, decoding:%s" % (self.subs_num, self.inprogress)
@@ -151,16 +153,14 @@ class Subset(object):
                     # They are handled in compression in same manner as other descr,
                     # with fix width from assoc-field-stack.
                     if self._alter.assoc[-1] and (self._dl[self._di] < 31000 or self._dl[self._di] > 32000):
-                        qual = fun.get_rval(self._blob,
-                                            self.is_compressed,
+                        qual = self.get_val(self._blob,
                                             self.subs_num,
                                             fix_width=self._alter.assoc[-1])
                     else:
                         qual = None
                     elem_b = self._tables.tab_b[self._dl[self._di]]
                     self._di += 1
-                    value = fun.get_rval(self._blob,
-                                         self.is_compressed,
+                    value = self.get_val(self._blob,
                                          self.subs_num,
                                          elem_b,
                                          self._alter)
@@ -251,8 +251,7 @@ class Subset(object):
             if self._dl[self._di] < 30000 or self._dl[self._di] >= 40000:
                 raise BufrDecodeError("No count (031YYY) for delayed loop!")
             elem_b = self._tables.tab_b[self._dl[self._di]]
-            loop_num = fun.get_rval(self._blob,
-                                    self.is_compressed,
+            loop_num = self.get_val(self._blob,
                                     self.subs_num,
                                     fix_width=elem_b.width)
             # Descriptors 31011+31012 mean repetition, not replication
@@ -282,8 +281,7 @@ class Subset(object):
         an = self._dl[self._di] % 1000
         self._di += 1
         while self._di < self._de:
-            rval = fun.get_rval(self._blob,
-                                self.is_compressed,
+            rval = self.get_val(self._blob,
                                 self.subs_num,
                                 fix_width=an)
             # Sign=high-bit
