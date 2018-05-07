@@ -178,11 +178,11 @@ def fun_04(subset, descr):
 def fun_05_r(subset, descr):
     """Signify with characters, plain language text as returned value"""
     an = descr % 1000
-    foo = fun.get_rval(subset._blob,
-                       subset.is_compressed,
-                       subset.subs_num,
-                       fix_width=an * 8)
-    v = fun.rval2str(foo)
+    v = fun.get_rval(subset._blob,
+                     subset.is_compressed,
+                     subset.subs_num,
+                     fix_width=an * 8,
+                     fix_typ=TabBType.STRING)
     logger.debug("OP text -> '%s'", v)
     # Special rval for plain character
     l_rval = DescrDataEntry(descr, None, v, None)
@@ -340,7 +340,7 @@ def fun_36_r(subset, descr):
                                    subset.subs_num,
                                    fix_width=1)
                       for _ in range(an)]
-    logger.debug("APPLY BITMAP (%d) %s",len(subset._bitmap),"".join([str(x) for x in subset._bitmap]))
+    logger.debug("APPLY BITMAP (%d) %s", len(subset._bitmap), "".join([str(x) for x in subset._bitmap]))
     subset._backref_record.apply(subset._bitmap)
     l_rval = DescrDataEntry(descr, "BMP DEF", subset._bitmap, None)
     return l_rval
@@ -377,9 +377,9 @@ def fun_37_w(subset, descr):
     if descr == 237000:
         if ((subset.is_compressed
              and isinstance(subset._vl[0][subset._vi], (list, tuple)))
-                or
-                (not subset.is_compressed
-                 and isinstance(subset._vl[subset._vi], (list, tuple)))
+            or
+            (not subset.is_compressed
+                     and isinstance(subset._vl[subset._vi], (list, tuple)))
             ):
             subset._vi += 1
         subset._backref_record.reset()

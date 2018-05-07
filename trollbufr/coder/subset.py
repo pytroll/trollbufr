@@ -85,11 +85,11 @@ class Subset(object):
 
         This generator will decode BUFR data.
 
-        For each data element a named tuple is returned. 
-        The items are the descriptor, a type marker, a numerical value, and 
+        For each data element a named tuple is returned.
+        The items are the descriptor, a type marker, a numerical value, and
         quality information. Items unset or unapplicaple are set to None.
 
-        mark consists of three uppercase letters, a space character, and a 
+        mark consists of three uppercase letters, a space character, and a
         descriptor or iteration number or "END".
         When a value for mark is returned, the others items are usually None,
         mark has the meaning:
@@ -98,11 +98,11 @@ class Subset(object):
         - RPL #n   : Descriptor replication number #n begins.
         - RPL END  : End of descriptor replication.
         - RPL NIL  : Descriptor replication evaluated to zero replications.
-        - REP #n   : Descriptor and data repetition, all descriptor and data 
+        - REP #n   : Descriptor and data repetition, all descriptor and data
                      between this and REP END are to be repeated #n times.
         - REP END  : End of desriptor and data repetition.
-        - OPR desc : Operator, which read and returned data values. 
-        - BMP      : Use the data present bit-map to refer to the data descriptors 
+        - OPR desc : Operator, which read and returned data values.
+        - BMP      : Use the data present bit-map to refer to the data descriptors
                      which immediately precede the operator to which it relates.
                      The bitmap is returned in the named tuple item 'value'.
 
@@ -159,16 +159,15 @@ class Subset(object):
                         qual = None
                     elem_b = self._tables.tab_b[self._dl[self._di]]
                     self._di += 1
-                    foo = fun.get_rval(self._blob,
-                                       self.is_compressed,
-                                       self.subs_num,
-                                       elem_b,
-                                       self._alter)
-                    v = fun.rval2num(elem_b, self._alter, foo)
+                    value = fun.get_rval(self._blob,
+                                         self.is_compressed,
+                                         self.subs_num,
+                                         elem_b,
+                                         self._alter)
                     if self._do_backref_record:
                         self._backref_record.append(elem_b, self._alter)
                     # This is the main yield
-                    yield DescrDataEntry(elem_b.descr, mark, v, qual)
+                    yield DescrDataEntry(elem_b.descr, mark, value, qual)
 
                 elif fun.descr_is_loop(self._dl[self._di]):
                     """Replication descriptor, loop/iterator, replication or repetition"""
@@ -203,10 +202,10 @@ class Subset(object):
 
                 elif fun.descr_is_oper(self._dl[self._di]):
                     """Operator descritor, alter/modify properties"""
-                    v = op.eval_oper(self, self._dl[self._di])
-                    if v is not None:
+                    value = op.eval_oper(self, self._dl[self._di])
+                    if value is not None:
                         # If the operator returned a value, yield it
-                        yield v
+                        yield value
                     self._di += 1
 
                 elif fun.descr_is_seq(self._dl[self._di]):
@@ -235,7 +234,7 @@ class Subset(object):
     def eval_loop_descr(self, record=True):
         """Evaluate descriptor for replication/repetition.
 
-        :param record: record element descriptors for delayed replication (if 
+        :param record: record element descriptors for delayed replication (if
                         present) in back reference list, default==True.
         :return: amount of descriptors, number of repeats, is_repetition
         """
@@ -272,8 +271,8 @@ class Subset(object):
     def _read_refval(self):
         """Set new reference values.
 
-        Reads a set of YYY bits, taking them as new reference values for the 
-        descriptors of the set. YYY is taken from the current descriptor dl[di], 
+        Reads a set of YYY bits, taking them as new reference values for the
+        descriptors of the set. YYY is taken from the current descriptor dl[di],
         reference values are set for all subsequent following descriptors until
         the descriptor signaling the end of operation occurs.
 
@@ -488,8 +487,8 @@ class SubsetWriter():
     def _write_refval(self):
         """Set new reference values.
 
-        Writes a set of YYY bits, taking them as new reference values for the 
-        descriptors of the set. YYY is taken from the current descriptor dl[di], 
+        Writes a set of YYY bits, taking them as new reference values for the
+        descriptors of the set. YYY is taken from the current descriptor dl[di],
         reference values are set for all subsequent following descriptors until
         the descriptor signaling the end of operation occurs.
 

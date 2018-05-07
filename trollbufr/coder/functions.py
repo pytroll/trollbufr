@@ -39,7 +39,7 @@ logger = logging.getLogger("trollbufr")
 def octets2num(bin_data, offset, count):
     """Convert character slice of length count from bin_data (high->low) to int.
 
-    Returns offset+count, the character after the converted characters, 
+    Returns offset+count, the character after the converted characters,
     and the integer value.
 
     :return: offset,value
@@ -52,15 +52,16 @@ def octets2num(bin_data, offset, count):
     return offset + count, v
 
 
-def get_rval(bin_data, comp, subs_num, tab_b_elem=None, alter=None, fix_width=None):
+def get_rval(bin_data, comp, subs_num, tab_b_elem=None, alter=None, fix_width=None, fix_typ=None):
     """Read a raw value integer from the data section.
 
-    The number of bits are either fixed or determined from Tab.B and previous 
+    The number of bits are either fixed or determined from Tab.B and previous
     alteration operators.
     Compression is taken into account.
 
     :return: raw value integer
     """
+    loc_typ = tab_b_elem.typ if tab_b_elem is not None else fix_typ
     if fix_width is not None:
         loc_width = fix_width
         if logger.isEnabledFor(logging.DEBUG):
@@ -75,9 +76,9 @@ def get_rval(bin_data, comp, subs_num, tab_b_elem=None, alter=None, fix_width=No
                          tab_b_elem.descr, bin_data.bc, bin_data.p,  # ord(bin_data[bin_data.p])
                          )
     elif tab_b_elem is not None and alter is not None:
-        if tab_b_elem.typ == TabBType.STRING and alter.wchr:
+        if loc_typ == TabBType.STRING and alter.wchr:
             loc_width = alter.wchr
-        elif tab_b_elem.typ == TabBType.DOUBLE or tab_b_elem.typ == TabBType.LONG:
+        elif loc_typ in (TabBType.DOUBLE, TabBType.LONG):
             if alter.ieee:
                 loc_width = alter.ieee
             else:
@@ -92,13 +93,19 @@ def get_rval(bin_data, comp, subs_num, tab_b_elem=None, alter=None, fix_width=No
     else:
         raise BufrDecodeError("Can't determine width.")
     if comp:
-        return cset2octets(bin_data,
+        rval = cset2octets(bin_data,
                            loc_width,
                            subs_num,
-                           tab_b_elem.typ if tab_b_elem is not None
-                           else TabBType.LONG)
+                           loc_typ or TabBType.LONG)
     else:
-        return bin_data.read_bits(loc_width)
+        if loc_typ == TabBType.STRING:
+            rval = bin_data.read_bytes(loc_width // 8)
+        else:
+            rval = bin_data.read_bits(loc_width)
+    if fix_width is not None:
+        return rval
+    else:
+        return rval2num(tab_b_elem, alter, rval)
 
 
 def cset2octets(bin_data, loc_width, subs_num, btyp):
@@ -132,7 +139,7 @@ def cset2octets(bin_data, loc_width, subs_num, btyp):
 
 
 def rval2str(rval):
-    """Each byte of the integer rval is taken as a character, 
+    """Each byte of the integer rval is taken as a character,
     they are joined into a string.
     """
     octets = []
@@ -181,8 +188,10 @@ def rval2num(tab_b_elem, alter, rval):
         loc_width = tab_b_elem.width + alter.wnum
         loc_refval = alter.refval.get(tab_b_elem.descr, tab_b_elem.refval * alter.refmul)
         loc_scale = tab_b_elem.scale + alter.scale
-    if rval == all_one(loc_width) and (tab_b_elem.descr < 31000
-                                       or tab_b_elem.descr >= 31020):
+    if ((tab_b_elem.typ == TabBType.STRING and rval == b"\xff" * (loc_width // 8))
+                or (tab_b_elem.typ != TabBType.STRING and rval == all_one(loc_width)
+                    and (tab_b_elem.descr < 31000 or tab_b_elem.descr >= 31020))
+            ):
         # First, test if all bits are set, which usually means "missing value".
         # The delayed replication and repetition descr are special nut-cases.
         logger.debug("rval %d ==_(1<<%d)%d    #%06d/%d", rval, loc_width,
@@ -203,13 +212,10 @@ def rval2num(tab_b_elem, alter, rval):
     elif tab_b_elem.typ == TabBType.LONG:
         # Integer: add reference, divide by scale
         val = (rval + loc_refval) / 10 ** loc_scale
-    elif tab_b_elem.typ == TabBType.STRING:
-        # For string, all bytes are reversed.
-        val = rval2str(rval)
     else:
         val = rval
 
-    logger.debug("EVAL-RV %06d: typ:%s width:%d ref:%d scal:%d%+d val:(%d)->(%s)",
+    logger.debug("EVAL-RV %06d: typ:%s width:%d ref:%d scal:%d%+d val:(%s)->(%s)",
                  tab_b_elem.descr, tab_b_elem.typ, loc_width, loc_refval,
                  tab_b_elem.scale, alter.scale, rval, str(val))
 
