@@ -119,6 +119,17 @@ def get_val_comp(bin_data, subs_num, tab_b_elem=None, alter=None, fix_width=None
         return rval2num(tab_b_elem, alter, rval)
 
 
+def get_val_array(bin_data, subs_num, tab_b_elem=None, alter=None, fix_width=None, fix_typ=None):
+    loc_width, loc_typ = calc_width(bin_data, tab_b_elem, alter, fix_width, fix_typ)
+    rval_ary = cset2array(bin_data,
+                          loc_width,
+                          subs_num[1],
+                          loc_typ or TabBType.LONG)
+    if fix_width is None:
+        rval_ary = [rval2num(tab_b_elem, alter, rval) for rval in rval_ary]
+    return rval_ary
+
+
 def cset2octets(bin_data, loc_width, subs_num, btyp):
     """Like Blob.read_bits(), but for compressed data.
 
@@ -147,6 +158,35 @@ def cset2octets(bin_data, loc_width, subs_num, btyp):
         logger.debug("CSET  subnum %s  loc_width %d  min_val %d  cwidth %d  cval %s  rval %d",
                      subs_num, loc_width, min_val, cwidth, n, v)
     return v
+
+
+def cset2array(bin_data, loc_width, subs_cnt, btyp):
+    """Like Blob.read_bits(), but for compressed data.
+
+    :return: octets
+    """
+    min_val = bin_data.read_bits(loc_width)
+    cwidth = bin_data.read_bits(6)
+    single_val = None
+    val_ary = [None] * subs_cnt
+    if btyp == TabBType.STRING:
+        cwidth *= 8
+    try:
+        if cwidth == 0 or min_val == all_one(loc_width):
+            # All equal or all missing
+            val_ary = [min_val] * subs_cnt
+        else:
+            # Data compressed
+            for i in range(subs_cnt):
+                single_val = bin_data.read_bits(cwidth)
+                if single_val == all_one(cwidth):
+                    val_ary[i] = all_one(loc_width)
+                else:
+                    val_ary[i] = min_val + single_val
+    finally:
+        logger.debug("CSET  subnum %s  loc_width %d  min_val %d  cwidth %d  cval %s  rval %d",
+                     subs_cnt, loc_width, min_val, cwidth, single_val, val_ary)
+    return val_ary
 
 
 def rval2str(rval):
@@ -200,8 +240,8 @@ def rval2num(tab_b_elem, alter, rval):
         loc_refval = alter.refval.get(tab_b_elem.descr, tab_b_elem.refval * alter.refmul)
         loc_scale = tab_b_elem.scale + alter.scale
     if ((tab_b_elem.typ == TabBType.STRING and rval == b"\xff" * (loc_width // 8))
-            or (tab_b_elem.typ != TabBType.STRING and rval == all_one(loc_width)
-                and (tab_b_elem.descr < 31000 or tab_b_elem.descr >= 31020))
+        or (tab_b_elem.typ != TabBType.STRING and rval == all_one(loc_width)
+                    and (tab_b_elem.descr < 31000 or tab_b_elem.descr >= 31020))
         ):
         # First, test if all bits are set, which usually means "missing value".
         # The delayed replication and repetition descr are special nut-cases.
