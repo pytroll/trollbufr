@@ -41,6 +41,10 @@ logger = logging.getLogger("trollbufr")
 
 
 def read_bufr_data(args):
+    """Read BUFR(s), decode data section and write to file-handle.
+
+    Decode all subsets in sequence, which reduces performance for compressed BUFR.
+    """
     try:
         fh_out = open(args.out_file, "wb")
     except:
@@ -135,7 +139,9 @@ def read_bufr_data(args):
         fh_out.close()
 
 
-def write_bufr_json(args):
+def read_bufr_to_json(args):
+    """Read and decode BUFR, write as JSON formatted file.
+    """
     bufr = Bufr(args.tables_type, args.tables_path)
     json_data = []
     bufr_i = -1
@@ -165,6 +171,8 @@ def write_bufr_json(args):
 
 
 def read_bufr_desc(args):
+    """Read BUFR(s), decode meta-data and descriptor list, write to file-handle.
+    """
     try:
         fh_out = open(args.out_file, "wb")
     except:
@@ -197,6 +205,8 @@ def read_bufr_desc(args):
 
 
 def write_bufr(args):
+    """Read JSON file, encode as BUFR and write to file-handle.
+    """
     import json
     try:
         fh_out = open(args.out_file, "wb")
@@ -333,7 +343,7 @@ def run(argv=None):
         if args.reader:
             read_bufr_data(args)
         elif args.json_dump:
-            write_bufr_json(args)
+            read_bufr_to_json(args)
         elif args.json_encode:
             write_bufr(args)
 
