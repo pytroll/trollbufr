@@ -42,8 +42,6 @@ logger = logging.getLogger("trollbufr")
 
 def read_bufr_data(args):
     """Read BUFR(s), decode data section and write to file-handle.
-
-    Decode all subsets in sequence, which reduces performance for compressed BUFR.
     """
     try:
         fh_out = open(args.out_file, "wb")
@@ -64,71 +62,10 @@ def read_bufr_data(args):
                 bufr.decode_meta(blob, load_tables=False)
                 tabl = bufr.load_tables()
                 print("META:\n%s" % bufr.get_meta_str(), file=fh_out)
-                for report in bufr.next_subset():
-                    print("SUBSET\t#%d/%d" % report.subs_num, file=fh_out)
-                    if args.sparse:
-                        for descr_entry in report.next_data():
-                            if descr_entry.mark is not None:
-                                print("  ", descr_entry.mark, end="", file=fh_out)
-                                if descr_entry.value:
-                                    print("", "".join(str(x) for x in descr_entry.value), end="", file=fh_out)
-                                print(file=fh_out)
-                                continue
-                            if descr_entry.value is None:
-                                print("%06d: ///" % (descr_entry.descr), file=fh_out)
-                            elif descr_entry.quality is not None:
-                                print("%06d: %s (%s)" % (descr_entry.descr,
-                                                         str(descr_entry.value),
-                                                         descr_entry.quality), file=fh_out)
-                            else:
-                                print("%06d: %s" % (descr_entry.descr,
-                                                    str(descr_entry.value)), file=fh_out)
-                    else:
-                        for descr_entry in report.next_data():
-                            if descr_entry.mark is not None:
-                                print("  ", descr_entry.mark, end="", file=fh_out)
-                                if descr_entry.value:
-                                    try:
-                                        print("",
-                                              "".join(str(x) for x in descr_entry.value),
-                                              end="", file=fh_out)
-                                    except StandardError as e:
-                                        logger.exception("%s", descr_entry)
-                                        raise e
-                                print(file=fh_out)
-                                continue
-                            d_name, d_unit, d_typ = tabl.lookup_elem(descr_entry.descr)
-                            if d_typ in (TabBType.CODE, TabBType.FLAG):
-                                if descr_entry.value is None:
-                                    print("%06d %-40s = Missing value"
-                                          % (descr_entry.descr, d_name), file=fh_out)
-                                else:
-                                    v = tabl.lookup_codeflag(descr_entry.descr,
-                                                             descr_entry.value)
-                                    print("%06d %-40s = %s"
-                                          % (descr_entry.descr,
-                                             d_name,
-                                             str(v)), file=fh_out)
-                            else:
-                                if d_unit in ("CCITT IA5", "Numeric"):
-                                    d_unit = ""
-                                if descr_entry.value is None:
-                                    print("%06d %-40s = /// %s"
-                                          % (descr_entry.descr,
-                                             d_name, d_unit), file=fh_out)
-                                elif descr_entry.quality is not None:
-                                    print("%06d %-40s = %s %s (%s)"
-                                          % (descr_entry.descr,
-                                             d_name,
-                                             str(descr_entry.value),
-                                             d_unit,
-                                             descr_entry.quality), file=fh_out)
-                                else:
-                                    print("%06d %-40s = %s %s"
-                                          % (descr_entry.descr,
-                                             d_name,
-                                             str(descr_entry.value),
-                                             d_unit), file=fh_out)
+                if args.array and bufr.is_compressed:
+                    read_bufr_data_as_array(args, tabl, bufr, fh_out)
+                else:
+                    read_bufr_data_as_single(args, tabl, bufr, fh_out)
             except StandardError as e:
                 print("ERROR\t%s" % e, file=fh_out)
                 if logger.isEnabledFor(logging.DEBUG):
@@ -137,6 +74,103 @@ def read_bufr_data(args):
                     logger.warning(e)
     if fh_out is not sys.stdout:
         fh_out.close()
+
+
+def read_bufr_data_as_single(args, tabl, bufr, fh_out):
+    """Decode data section and write to file-handle.
+
+    Process all subsets in sequence, which reduces performance for compressed BUFR.
+    """
+    for report in bufr.next_subset():
+        print("SUBSET\t#%d/%d" % report.subs_num, file=fh_out)
+        if args.sparse:
+            for descr_entry in report.next_data():
+                if descr_entry.mark is not None:
+                    print("  ", descr_entry.mark, end="", file=fh_out)
+                    if descr_entry.value:
+                        print("", "".join(str(x) for x in descr_entry.value), end="", file=fh_out)
+                    print(file=fh_out)
+                    continue
+                if descr_entry.value is None:
+                    print("%06d: ///" % (descr_entry.descr), file=fh_out)
+                elif descr_entry.quality is not None:
+                    print("%06d: %s (%s)" % (descr_entry.descr,
+                                             str(descr_entry.value),
+                                             descr_entry.quality), file=fh_out)
+                else:
+                    print("%06d: %s" % (descr_entry.descr,
+                                        str(descr_entry.value)), file=fh_out)
+        else:
+            for descr_entry in report.next_data():
+                if descr_entry.mark is not None:
+                    print("  ", descr_entry.mark, end="", file=fh_out)
+                    if descr_entry.value:
+                        try:
+                            print("",
+                                  "".join(str(x) for x in descr_entry.value),
+                                  end="", file=fh_out)
+                        except StandardError as e:
+                            logger.exception("%s", descr_entry)
+                            raise e
+                    print(file=fh_out)
+                    continue
+                d_name, d_unit, d_typ = tabl.lookup_elem(descr_entry.descr)
+                if d_typ in (TabBType.CODE, TabBType.FLAG):
+                    if descr_entry.value is None:
+                        print("%06d %-40s = Missing value"
+                              % (descr_entry.descr, d_name), file=fh_out)
+                    else:
+                        v = tabl.lookup_codeflag(descr_entry.descr,
+                                                 descr_entry.value)
+                        print("%06d %-40s = %s"
+                              % (descr_entry.descr,
+                                 d_name,
+                                 str(v)), file=fh_out)
+                else:
+                    if d_unit in ("CCITT IA5", "Numeric"):
+                        d_unit = ""
+                    if descr_entry.value is None:
+                        print("%06d %-40s = /// %s"
+                              % (descr_entry.descr,
+                                 d_name, d_unit), file=fh_out)
+                    elif descr_entry.quality is not None:
+                        print("%06d %-40s = %s %s (%s)"
+                              % (descr_entry.descr,
+                                 d_name,
+                                 str(descr_entry.value),
+                                 d_unit,
+                                 descr_entry.quality), file=fh_out)
+                    else:
+                        print("%06d %-40s = %s %s"
+                              % (descr_entry.descr,
+                                 d_name,
+                                 str(descr_entry.value),
+                                 d_unit), file=fh_out)
+
+
+def read_bufr_data_as_array(args, tabl, bufr, fh_out):
+    """Read BUFR(s), decode data section and write to file-handle.
+
+    Process all subsets at once, which improves performance for compressed BUFR.
+    """
+    reports = bufr.next_subset_array()
+    print("SUBSET\t#%d/%d" % reports.subs_num, file=fh_out)
+    for descr_entry in reports.next_data():
+        if descr_entry.mark is not None:
+            print("  ", descr_entry.mark, end="", file=fh_out)
+            if descr_entry.value:
+                print("", "".join(str(x) for x in descr_entry.value), end="", file=fh_out)
+            print(file=fh_out)
+            continue
+        if descr_entry.value is None:
+            print("%06d: ///" % (descr_entry.descr), file=fh_out)
+        elif descr_entry.quality is not None:
+            print("%06d: %s (%s)" % (descr_entry.descr,
+                                     str(descr_entry.value),
+                                     descr_entry.quality), file=fh_out)
+        else:
+            print("%06d: %s" % (descr_entry.descr,
+                                str(descr_entry.value)), file=fh_out)
 
 
 def read_bufr_to_json(args):
@@ -155,7 +189,9 @@ def read_bufr_to_json(args):
                               "index": bufr_i,
                               })
             try:
-                json_bufr = bufr.decode(blob, load_tables=True)
+                json_bufr = bufr.decode(blob,
+                                        load_tables=True,
+                                        as_array=args.array)
             except StandardError as e:
                 logger.error(e, exc_info=1 and logger.isEnabledFor(logging.DEBUG))
                 json_data[-1]["error"] = str(e)
@@ -256,28 +292,32 @@ def run(argv=None):
                             action="store_true",
                             help="sparse output, no tables loaded"
                             )
+        parser.add_argument("-a", "--array", dest="array",
+                            action="store_true",
+                            help="values as array (compressed BUFR only!)"
+                            )
+        parser.add_argument("-o", "--output", dest="out_file",
+                            metavar="file",
+                            help="write to file instead STDOUT"
+                            )
         group_op = parser.add_argument_group(title="operator",
                                              description="what to do (at least one required)"
                                              )
-        group_op.add_argument("-r", "--read", dest="reader",
-                              action="store_true",
-                              help="print data"
-                              )
-        group_op.add_argument("-d", "--desc", dest="desc",
+        group_op.add_argument("-m", "--meta", dest="desc",
                               action="store_true",
                               help="print info/descriptor"
                               )
-        group_op.add_argument("-j", "--json-dump", dest="json_dump",
+        group_op.add_argument("-d", "--decode", dest="reader",
                               action="store_true",
-                              help="dump data in JSON format"
+                              help="decode and print data"
+                              )
+        group_op.add_argument("-j", "--decode-json", dest="json_dump",
+                              action="store_true",
+                              help="decode and dump data in JSON format"
                               )
         group_op.add_argument("-e", "--encode", dest="json_encode",
                               action="store_true",
                               help="encode data from JSON file as BUFR"
-                              )
-        group_op.add_argument("-o", "--output", dest="out_file",
-                              metavar="file",
-                              help="write to file instead STDOUT"
                               )
         group_tab = parser.add_argument_group(title="table setting")
         group_tab.add_argument("-t", "--tables_path",

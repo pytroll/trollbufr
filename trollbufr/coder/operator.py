@@ -331,10 +331,16 @@ def fun_36_r(subset, descr):
     am, an, _ = subset.eval_loop_descr(record=False)
     if am != 1 or subset._dl[subset._di] != 31031:
         raise BufrDecodeError("Fault in replication defining bitmap!")
-    subset._bitmap = [subset.get_val(subset._blob,
-                                     subset.subs_num,
-                                     fix_width=1)
-                      for _ in range(an)]
+    if subset._as_array:
+        subset._bitmap = [subset.get_val(subset._blob,
+                                         subset.subs_num,
+                                         fix_width=1)[0]
+                          for _ in range(an)]
+    else:
+        subset._bitmap = [subset.get_val(subset._blob,
+                                         subset.subs_num,
+                                         fix_width=1)
+                          for _ in range(an)]
     logger.debug("APPLY BITMAP (%d) %s", len(subset._bitmap), "".join([str(x) for x in subset._bitmap]))
     subset._backref_record.apply(subset._bitmap)
     l_rval = DescrDataEntry(descr, "BMP DEF", subset._bitmap, None)
@@ -371,11 +377,11 @@ def fun_37_w(subset, descr):
     """
     if descr == 237000:
         if ((subset.is_compressed
-                 and isinstance(subset._vl[0][subset._vi], (list, tuple)))
-                or
-                (not subset.is_compressed
-                 and isinstance(subset._vl[subset._vi], (list, tuple)))
-                ):
+             and isinstance(subset._vl[0][subset._vi], (list, tuple)))
+            or
+            (not subset.is_compressed
+                     and isinstance(subset._vl[subset._vi], (list, tuple)))
+            ):
             subset._vi += 1
         subset._backref_record.reset()
     elif descr == 237255:

@@ -96,11 +96,8 @@ def calc_width(bin_data, tab_b_elem=None, alter=None, fix_width=None, fix_typ=No
 
 
 def get_val(bin_data, subs_num, tab_b_elem=None, alter=None, fix_width=None, fix_typ=None):
-    loc_width, loc_typ = calc_width(bin_data, tab_b_elem, alter, fix_width, fix_typ)
-    if loc_typ == TabBType.STRING:
-        rval = bin_data.read_bytes(loc_width // 8)
-    else:
-        rval = bin_data.read_bits(loc_width)
+    loc_width, _ = calc_width(bin_data, tab_b_elem, alter, fix_width, fix_typ)
+    rval = bin_data.read_bits(loc_width)
     if fix_width is not None:
         return rval
     else:
@@ -184,7 +181,7 @@ def cset2array(bin_data, loc_width, subs_cnt, btyp):
                 else:
                     val_ary[i] = min_val + single_val
     finally:
-        logger.debug("CSET  subnum %s  loc_width %d  min_val %d  cwidth %d  cval %s  rval %d",
+        logger.debug("CSET  subnum %s  loc_width %d  min_val %d  cwidth %d  cval %s  rval %s",
                      subs_cnt, loc_width, min_val, cwidth, single_val, val_ary)
     return val_ary
 
@@ -239,10 +236,9 @@ def rval2num(tab_b_elem, alter, rval):
         loc_width = tab_b_elem.width + alter.wnum
         loc_refval = alter.refval.get(tab_b_elem.descr, tab_b_elem.refval * alter.refmul)
         loc_scale = tab_b_elem.scale + alter.scale
-    if ((tab_b_elem.typ == TabBType.STRING and rval == b"\xff" * (loc_width // 8))
-        or (tab_b_elem.typ != TabBType.STRING and rval == all_one(loc_width)
-                    and (tab_b_elem.descr < 31000 or tab_b_elem.descr >= 31020))
-        ):
+    if (tab_b_elem.typ != TabBType.STRING and rval == all_one(loc_width)
+            and (tab_b_elem.descr < 31000 or tab_b_elem.descr >= 31020)
+            ):
         # First, test if all bits are set, which usually means "missing value".
         # The delayed replication and repetition descr are special nut-cases.
         logger.debug("rval %d ==_(1<<%d)%d    #%06d/%d", rval, loc_width,
@@ -263,10 +259,12 @@ def rval2num(tab_b_elem, alter, rval):
     elif tab_b_elem.typ == TabBType.LONG:
         # Integer: add reference, divide by scale
         val = (rval + loc_refval) / 10 ** loc_scale
+    elif tab_b_elem.typ == TabBType.STRING:
+        val = rval2str(rval)
     else:
         val = rval
 
-    logger.debug("EVAL-RV %06d: typ:%s width:%d ref:%d scal:%d%+d val:(%s)->(%s)",
+    logger.debug("EVAL-RV %06d: typ:%s width:%d ref:%d scal:%d%+d val:(%d)->(%s)",
                  tab_b_elem.descr, tab_b_elem.typ, loc_width, loc_refval,
                  tab_b_elem.scale, alter.scale, rval, str(val))
 

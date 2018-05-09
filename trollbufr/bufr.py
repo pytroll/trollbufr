@@ -49,12 +49,6 @@ class Bufr(object):
     _blob = None
     # Meta bin_data
     _meta = {}
-    # Edition
-    _edition = 4
-    # Number of subsets
-    _subsets = -1
-    # Compressed bin_data
-    _compressed = False
     # Initial list of descr (from Sect3)
     _desc = []
     # Start of bin_data
@@ -67,6 +61,12 @@ class Bufr(object):
     _tab_f = None
     # Holds table object
     _tables = None
+    # Edition
+    edition = 4
+    # Number of subsets
+    subsets = -1
+    # Compressed bin_data
+    is_compressed = False
 
     def __init__(self, tab_fmt, tab_path, bin_data=None, json_obj=None):
         self._tab_p = tab_path
@@ -202,7 +202,52 @@ class Bufr(object):
             di += 1
         return desc_text
 
-    def next_subset(self):
+    def next_subset_array(self):
+        logger.info("SUBSETS %d", self.subsets)
+        # Create new Subset object
+        subset = SubsetReader(self._tables,
+                              self._blob,
+                              self._desc,
+                              self.is_compressed,
+                              (-1, self.subsets),
+                              self._data_e,
+                              edition=self.edition,
+                              has_backref=self._has_backref_oper,
+                              as_array=True)
+        yield subset
+        raise StopIteration
+
+    def next_subset_single(self):
+        subset = None
+        for i in range(self.subsets):
+            logger.info("SUBSET #%d", i)
+            if subset is not None and subset.inprogress:
+                raise BufrDecodeWarning("Subset decoding still in progress!")
+            # Only if no subset is read currently
+            if self.is_compressed:
+                self._blob.reset(self._data_s)
+            if self._blob.p >= self._data_e:
+                raise BufrDecodeError("Unexpected end of bin_data section!")
+            # Create new Subset object
+            subset = SubsetReader(self._tables,
+                                  self._blob,
+                                  self._desc,
+                                  self.is_compressed,
+                                  (i, self.subsets),
+                                  self._data_e,
+                                  has_backref=self._has_backref_oper)
+            yield subset
+            i += 1
+            # Padding bits (and to next even byte) for bin_data pointer if necessary
+            if self.edition < 4:
+                p = self._blob.p
+                bc = self._blob.bc
+                self._blob.read_align(even=True)
+                logger.debug("Padding  p:%d  bc:%d  -->  p:%d",
+                             p, bc, self._blob.p)
+        raise StopIteration
+
+    def next_subset(self, as_array=False):
         """Iterator for subsets in Sect. 4
 
         .. IMPORTANT::
@@ -213,38 +258,16 @@ class Bufr(object):
         :raise BufrDecodeWarning: recoverable error.
         :raise BufrDecodeError: error that stops decoding.
         """
-        i = 0
-        subset = None
         self._blob.reset(self._data_s)
         # Determine if descriptors need recording for back-reference operator
         self._desc_exp, self._has_backref_oper = get_descr_list(self._tables, self._desc)
         logger.info("BUFR START")
-        while i < self._subsets:
-            logger.info("SUBSET #%d", i)
-            if subset is not None and subset.inprogress:
-                raise BufrDecodeWarning("Subset decoding still in progress!")
-            # Only if no subset is read currently
-            if self._compressed:
-                self._blob.reset(self._data_s)
-            if self._blob.p >= self._data_e:
-                raise BufrDecodeError("Unexpected end of bin_data section!")
-            # Create new Subset object
-            subset = SubsetReader(self._tables,
-                                  self._blob,
-                                  self._desc,
-                                  self._compressed,
-                                  self._has_backref_oper,
-                                  (i, self._subsets),
-                                  self._data_e)
-            yield subset
-            i += 1
-            # Padding bits (and to next even byte) for bin_data pointer if necessary
-            if self._edition < 4:
-                p = self._blob.p
-                bc = self._blob.bc
-                self._blob.read_align(even=True)
-                logger.debug("Padding  p:%d  bc:%d  -->  p:%d",
-                             p, bc, self._blob.p)
+        if as_array:
+            for subset in self.next_subset_array():
+                yield subset
+        else:
+            for subset in self.next_subset_single():
+                yield subset
         # Padding bits after last subset
         self._blob.read_align()
         # Check if sect.5 is reached
@@ -274,14 +297,14 @@ class Bufr(object):
         #
         o, l, r = sect.decode_sect0(self._blob, 0)
         self._meta.update(r)
-        self._edition = r['edition']
+        self.edition = r['edition']
         logger.debug("SECT_0\t offs:%d len:%d = %s", o, l, r)
-        if self._edition not in SUPPORTED_BUFR_EDITION:
-            raise BufrDecodeError("BUFR edition %d not supported" % self._edition)
+        if self.edition not in SUPPORTED_BUFR_EDITION:
+            raise BufrDecodeError("BUFR edition %d not supported" % self.edition)
         #
         # Section 1
         #
-        o, l, r = sect.decode_sect1(self._blob, o, edition=self._edition)
+        o, l, r = sect.decode_sect1(self._blob, o, edition=self.edition)
         self._meta.update(r)
         logger.debug("SECT_1\t offs:%d len:%d = %s", o, l, r)
 
@@ -303,8 +326,8 @@ class Bufr(object):
         #
         o, l, r = sect.decode_sect3(self._blob, o)
         self._meta.update(r)
-        self._subsets = r['subsets']
-        self._compressed = r['comp']
+        self.subsets = r['subsets']
+        self.is_compressed = r['comp']
         self._desc = r['descr']
         logger.debug("SECT_3\t offs:%d len:%d = %s", o, l, r)
         #
@@ -331,7 +354,7 @@ class Bufr(object):
             raise tables_fail
         return self._meta
 
-    def decode(self, bin_data, load_tables=True):
+    def decode(self, bin_data, load_tables=True, as_array=False):
         """Decodes the BUFR into a JSON compatible data object.
 
         The created JSON compatible data object is a list of the BUFR sections,
@@ -380,7 +403,7 @@ class Bufr(object):
         # Section 3
         #
         sect_buf = []
-        sect_buf.extend([self._subsets, self._meta["obs"], self._meta["comp"]])
+        sect_buf.extend([self.subsets, self._meta["obs"], self._meta["comp"]])
         mval = []
         for k in self._desc:
             mval.append("%06d" % k)
@@ -389,41 +412,88 @@ class Bufr(object):
         #
         # Section 4
         #
-        stack = []
-        for report in self.next_subset():
-            stack.append([])
-            rpl_i = 0
-            for descr_entry in report.next_data():
-                if descr_entry.mark is not None:
-                    mark_el = descr_entry.mark.split(" ")
-                    if mark_el[0] in ("RPL", "REP"):
-                        if len(mark_el) == 3:
-                            # Replication starts
-                            stack.append([])
-                            rpl_i = 0
-                        elif mark_el[1] == "END":
-                            # Replication ends
-                            xpar = stack.pop()
-                            stack[-1].append(xpar)
-                            xpar = stack.pop()
-                            stack[-1].append(xpar)
-                        elif mark_el[1] == "NIL":
-                            # No iterations
-                            xpar = stack.pop()
-                            stack[-1].append(xpar)
-                        else:
-                            # For each iteration:
-                            if rpl_i:
+        if as_array and self.is_compressed:
+            stack = [[] for _ in range(self.subsets)]
+            for report in self.next_subset(as_array):
+                rpl_i = 0
+                for descr_entry in report.next_data():
+                    if descr_entry.mark is not None:
+                        mark_el = descr_entry.mark.split(" ")
+                        if mark_el[0] in ("RPL", "REP"):
+                            if len(mark_el) == 3:
+                                # Replication starts
+                                stack.extend([[] for _ in range(self.subsets)])
+                                rpl_i = 0
+                            elif mark_el[1] == "END":
+                                # Replication ends
+                                xpar = stack[-self.subsets:]
+                                del stack[-self.subsets:]
+                                for s in range(-self.subsets, 0):
+                                    stack[s].append(xpar[s])
+                                xpar = stack[-self.subsets:]
+                                del stack[-self.subsets:]
+                                for s in range(-self.subsets, 0):
+                                    stack[s].append(xpar[s])
+                            elif mark_el[1] == "NIL":
+                                # No iterations
+                                xpar = stack[-self.subsets:]
+                                del stack[-self.subsets:]
+                                for s in range(-self.subsets, 0):
+                                    stack[s].append(xpar[s])
+                            else:
+                                # For each iteration:
+                                if rpl_i:
+                                    xpar = stack[-self.subsets:]
+                                    del stack[-self.subsets:]
+                                    for s in range(-self.subsets, 0):
+                                        stack[s].append(xpar[s])
+                                rpl_i += 1
+                                stack.extend([[] for _ in range(self.subsets)])
+                        elif descr_entry.mark == "BMP DEF":
+                            for s in range(-self.subsets, 0):
+                                stack[s].append([[b] for b in descr_entry.value])
+                    else:
+                        if isinstance(descr_entry.quality, (int, float)):
+                            for s in range(-self.subsets, 0):
+                                stack[s].append(descr_entry.quality[s])
+                        for s in range(-self.subsets, 0):
+                            stack[s].append(descr_entry.value[s])
+        else:
+            stack = []
+            for report in self.next_subset(as_array):
+                stack.append([])
+                rpl_i = 0
+                for descr_entry in report.next_data():
+                    if descr_entry.mark is not None:
+                        mark_el = descr_entry.mark.split(" ")
+                        if mark_el[0] in ("RPL", "REP"):
+                            if len(mark_el) == 3:
+                                # Replication starts
+                                stack.append([])
+                                rpl_i = 0
+                            elif mark_el[1] == "END":
+                                # Replication ends
                                 xpar = stack.pop()
                                 stack[-1].append(xpar)
-                            rpl_i += 1
-                            stack.append([])
-                    elif descr_entry.mark == "BMP DEF":
-                        stack[-1].append([[b] for b in descr_entry.value])
-                else:
-                    if isinstance(descr_entry.quality, (int, float)):
-                        stack[-1].append(descr_entry.quality)
-                    stack[-1].append(descr_entry.value)
+                                xpar = stack.pop()
+                                stack[-1].append(xpar)
+                            elif mark_el[1] == "NIL":
+                                # No iterations
+                                xpar = stack.pop()
+                                stack[-1].append(xpar)
+                            else:
+                                # For each iteration:
+                                if rpl_i:
+                                    xpar = stack.pop()
+                                    stack[-1].append(xpar)
+                                rpl_i += 1
+                                stack.append([])
+                        elif descr_entry.mark == "BMP DEF":
+                            stack[-1].append([[b] for b in descr_entry.value])
+                    else:
+                        if isinstance(descr_entry.quality, (int, float)):
+                            stack[-1].append(descr_entry.quality)
+                        stack[-1].append(descr_entry.value)
         json_bufr.append(stack)
         json_bufr.append(["7777"])
         return json_bufr
@@ -454,16 +524,16 @@ class Bufr(object):
         sect_start[sect_i], sect_meta = sect.encode_sect0(bin_data, json_data[sect_i][1])
         logger.debug("SECT %d start:%d  %s", sect_i, sect_start[sect_i], sect_meta)
         self._meta.update(sect_meta)
-        self._edition = sect_meta['edition']
-        if self._edition not in SUPPORTED_BUFR_EDITION:
-            raise BufrDecodeError("BUFR edition %d not supported" % self._edition)
+        self.edition = sect_meta['edition']
+        if self.edition not in SUPPORTED_BUFR_EDITION:
+            raise BufrDecodeError("BUFR edition %d not supported" % self.edition)
         #
         # Section 1
         #
         sect_i += 1
         sect_start[sect_i], sect_meta = sect.encode_sect1(bin_data,
                                                           json_data[sect_i],
-                                                          self._edition)
+                                                          self.edition)
         logger.debug("SECT %d start:%d  %s", sect_i, sect_start[sect_i], sect_meta)
         self._meta.update(sect_meta)
         if load_tables and not self._tables:
@@ -484,11 +554,11 @@ class Bufr(object):
         sect_i += 1
         sect_start[sect_i], sect_meta = sect.encode_sect3(bin_data,
                                                           json_data[sect_i],
-                                                          self._edition)
+                                                          self.edition)
         logger.debug("SECT %d start:%d  %s", sect_i, sect_start[sect_i], sect_meta)
         self._meta.update(sect_meta)
-        self._subsets = sect_meta['subsets']
-        self._compressed = sect_meta['comp']
+        self.subsets = sect_meta['subsets']
+        self.is_compressed = sect_meta['comp']
         self._desc = sect_meta['descr']
         # Determine if descriptors need recording for back-reference operator
         _, has_backref_oper = get_descr_list(self._tables, self._desc)
@@ -499,16 +569,16 @@ class Bufr(object):
         subset_writer = SubsetWriter(self._tables,
                                      bin_data,
                                      self._desc,
-                                     self._compressed,
-                                     self._subsets,
-                                     edition=self._edition,
+                                     self.is_compressed,
+                                     self.subsets,
+                                     edition=self.edition,
                                      has_backref=has_backref_oper)
         sect_start[sect_i] = sect.encode_sect4(bin_data,
-                                               self._edition)
+                                               self.edition)
         logger.debug("SECT %d start:%d", sect_i, sect_start[sect_i])
         subset_writer.process(json_data[sect_i])
         # Pad last octet if needed, align to even octet number if Ed.3
-        bin_data.write_align(self._edition == 3)
+        bin_data.write_align(self.edition == 3)
         #
         # Section 5
         #

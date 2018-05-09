@@ -45,8 +45,13 @@ class SubsetReader(object):
     # Currently decoding a subset
     inprogress = False
 
-    def __init__(self, tables, bufr, descr_list, is_compressed, has_backref, subset_num, data_end):
+    def __init__(self, tables, bufr, descr_list, is_compressed, subset_num,
+                 data_end, edition=4, has_backref=False, as_array=False):
+        # Apply internal compression
         self.is_compressed = is_compressed
+        # BUFR edition
+        self.edition = edition
+        # Current and total number of subsets, as tuple
         self.subs_num = subset_num
         # Holds table object
         self._tables = tables
@@ -76,11 +81,19 @@ class SubsetReader(object):
         self._di = self._de = 0
         self._vl = []
         self._vi = 0
+        self._as_array = as_array and self.is_compressed
         # Method for reading a value from the bistream, depends on compression.
-        self.get_val = fun.get_val_comp if self.is_compressed else fun.get_val
+        if self._as_array and self.is_compressed:
+            self.get_val = fun.get_val_array
+        elif self.is_compressed:
+            self.get_val = fun.get_val_comp
+        else:
+            self.get_val = fun.get_val
 
     def __str__(self):
-        return "Subset #%d/%d, decoding:%s" % (self.subs_num, self.inprogress)
+        return "Subset #%d/%d, decoding: %s" % (self.subs_num[0],
+                                                self.subs_num[1],
+                                                self.inprogress)
 
     def next_data(self):
         """Iterator for Sect. 4 data.
@@ -90,6 +103,10 @@ class SubsetReader(object):
         For each data element a named tuple is returned.
         The items are the descriptor, a type marker, a numerical value, and
         quality information. Items unset or unapplicaple are set to None.
+
+        If the reader is set to return all subsets' values as an array per
+        descriptor, the yielded value and quality data are both a list of equal
+        size. Otherwise both are simple data types.
 
         mark consists of three uppercase letters, a space character, and a
         descriptor or iteration number or "END".
@@ -109,6 +126,7 @@ class SubsetReader(object):
                      The bitmap is returned in the named tuple item 'value'.
 
         :yield: collections.namedtuple(desc, mark, value, quality)
+                OR collections.namedtuple(desc, mark, [value, ...], [quality, ...])
         """
         if self._blob.p < 0 or self._data_e < 0 or self._blob.p >= self._data_e:
             raise BufrDecodeError("Data section start/end not initialised!")
@@ -254,12 +272,17 @@ class SubsetReader(object):
             loop_num = self.get_val(self._blob,
                                     self.subs_num,
                                     fix_width=elem_b.width)
+            if self._as_array:
+                if min(loop_num) != max(loop_num):
+                    raise BufrDecodeError("Loop-numbers in compression unequal: {}".format(loop_num))
+                loop_num = loop_num[0]
             # Descriptors 31011+31012 mean repetition, not replication
             is_rep = 31010 <= elem_b.descr <= 31012
             if record and self._do_backref_record:
                 self._backref_record.append(elem_b, None)
             logger.debug("%s %d %d -> %d from %06d",
-                         "REPT" if is_rep else "LOOP", loop_amnt, 0, loop_num, elem_b.descr)
+                         "REPT" if is_rep else "LOOP",
+                         loop_amnt, 0, loop_num, elem_b.descr)
             self._di += 1
             if loop_num == 255:
                 loop_num = 0
@@ -302,7 +325,7 @@ class SubsetWriter():
         # Apply internal compression
         self.is_compressed = is_compressed
         # BUFR edition
-        self._edition = edition
+        self.edition = edition
         # Number of subsets
         self.subs_num = subset_num
         # Holds table object
@@ -478,7 +501,7 @@ class SubsetWriter():
                     raise BufrDecodeError("Descriptor '%06d' invalid!" % self._dl[self._di])
 
         # Add padding bytes if required
-        if self._edition <= 3:
+        if self.edition <= 3:
             self._blob.write_align(even=False)
             logger.debug("PADDING -> %d/%d", len(self._blob) // 8, len(self._blob) % 8)
 
