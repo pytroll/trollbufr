@@ -215,6 +215,13 @@ class Bufr(object):
                               has_backref=self._has_backref_oper,
                               as_array=True)
         yield subset
+        # Padding bits (and to next even byte) for bin_data pointer if necessary
+        if self.edition < 4:
+            p = self._blob.p
+            bc = self._blob.bc
+            self._blob.read_align(even=True)
+            logger.debug("Padding  p:%d  bc:%d  -->  p:%d",
+                         p, bc, self._blob.p)
         raise StopIteration
 
     def next_subset_single(self):
@@ -412,88 +419,62 @@ class Bufr(object):
         #
         # Section 4
         #
+        stack = []
         if as_array and self.is_compressed:
-            stack = [[] for _ in range(self.subsets)]
-            for report in self.next_subset(as_array):
-                rpl_i = 0
-                for descr_entry in report.next_data():
-                    if descr_entry.mark is not None:
-                        mark_el = descr_entry.mark.split(" ")
-                        if mark_el[0] in ("RPL", "REP"):
-                            if len(mark_el) == 3:
-                                # Replication starts
-                                stack.extend([[] for _ in range(self.subsets)])
-                                rpl_i = 0
-                            elif mark_el[1] == "END":
-                                # Replication ends
-                                xpar = stack[-self.subsets:]
-                                del stack[-self.subsets:]
-                                for s in range(-self.subsets, 0):
-                                    stack[s].append(xpar[s])
-                                xpar = stack[-self.subsets:]
-                                del stack[-self.subsets:]
-                                for s in range(-self.subsets, 0):
-                                    stack[s].append(xpar[s])
-                            elif mark_el[1] == "NIL":
-                                # No iterations
-                                xpar = stack[-self.subsets:]
-                                del stack[-self.subsets:]
-                                for s in range(-self.subsets, 0):
-                                    stack[s].append(xpar[s])
-                            else:
-                                # For each iteration:
-                                if rpl_i:
-                                    xpar = stack[-self.subsets:]
-                                    del stack[-self.subsets:]
-                                    for s in range(-self.subsets, 0):
-                                        stack[s].append(xpar[s])
-                                rpl_i += 1
-                                stack.extend([[] for _ in range(self.subsets)])
-                        elif descr_entry.mark == "BMP DEF":
-                            for s in range(-self.subsets, 0):
-                                stack[s].append([[b] for b in descr_entry.value])
-                    else:
-                        if isinstance(descr_entry.quality, (int, float)):
-                            for s in range(-self.subsets, 0):
-                                stack[s].append(descr_entry.quality[s])
-                        for s in range(-self.subsets, 0):
-                            stack[s].append(descr_entry.value[s])
+            def hook_over():
+                xpar = stack[-self.subsets:]
+                del stack[-self.subsets:]
+                for s in range(-self.subsets, 0):
+                    stack[s].append(xpar[s])
+
+            def add_empty():
+                stack.extend([[] for _ in range(self.subsets)])
+
+            def add_value(value):
+                for s in range(-self.subsets, 0):
+                    stack[s].append(value[s])
         else:
-            stack = []
-            for report in self.next_subset(as_array):
+            def hook_over():
+                xpar = stack.pop()
+                stack[-1].append(xpar)
+
+            def add_empty():
                 stack.append([])
-                rpl_i = 0
-                for descr_entry in report.next_data():
-                    if descr_entry.mark is not None:
-                        mark_el = descr_entry.mark.split(" ")
-                        if mark_el[0] in ("RPL", "REP"):
-                            if len(mark_el) == 3:
-                                # Replication starts
-                                stack.append([])
-                                rpl_i = 0
-                            elif mark_el[1] == "END":
-                                # Replication ends
-                                xpar = stack.pop()
-                                stack[-1].append(xpar)
-                                xpar = stack.pop()
-                                stack[-1].append(xpar)
-                            elif mark_el[1] == "NIL":
-                                # No iterations
-                                xpar = stack.pop()
-                                stack[-1].append(xpar)
-                            else:
-                                # For each iteration:
-                                if rpl_i:
-                                    xpar = stack.pop()
-                                    stack[-1].append(xpar)
-                                rpl_i += 1
-                                stack.append([])
-                        elif descr_entry.mark == "BMP DEF":
-                            stack[-1].append([[b] for b in descr_entry.value])
-                    else:
-                        if isinstance(descr_entry.quality, (int, float)):
-                            stack[-1].append(descr_entry.quality)
-                        stack[-1].append(descr_entry.value)
+
+            def add_value(value):
+                stack[-1].append(value)
+
+        add_empty()
+        for report in self.next_subset(as_array):
+            rpl_i = 0
+            for descr_entry in report.next_data():
+                if descr_entry.mark is not None:
+                    mark_el = descr_entry.mark.split(" ")
+                    if mark_el[0] in ("RPL", "REP"):
+                        if len(mark_el) == 3:
+                            # Replication starts
+                            add_empty()
+                            rpl_i = 0
+                        elif mark_el[1] == "END":
+                            # Replication ends
+                            hook_over()
+                            hook_over()
+                        elif mark_el[1] == "NIL":
+                            # No iterations
+                            hook_over()
+                        else:
+                            # For each iteration:
+                            if rpl_i:
+                                hook_over()
+                            rpl_i += 1
+                            add_empty()
+                    elif descr_entry.mark == "BMP DEF":
+                        for s in range(-self.subsets if as_array else -1, 0):
+                            stack[s].append([[b] for b in descr_entry.value])
+                else:
+                    if isinstance(descr_entry.quality, (int, float)):
+                        add_value(descr_entry.quality[s])
+                    add_value(descr_entry.value[s])
         json_bufr.append(stack)
         json_bufr.append(["7777"])
         return json_bufr
