@@ -236,9 +236,8 @@ def rval2num(tab_b_elem, alter, rval):
         loc_width = tab_b_elem.width + alter.wnum
         loc_refval = alter.refval.get(tab_b_elem.descr, tab_b_elem.refval * alter.refmul)
         loc_scale = tab_b_elem.scale + alter.scale
-    if (tab_b_elem.typ != TabBType.STRING and rval == all_one(loc_width)
-            and (tab_b_elem.descr < 31000 or tab_b_elem.descr >= 31020)
-            ):
+    if (rval == all_one(loc_width)
+            and (tab_b_elem.descr < 31000 or tab_b_elem.descr >= 31020)):
         # First, test if all bits are set, which usually means "missing value".
         # The delayed replication and repetition descr are special nut-cases.
         logger.debug("rval %d ==_(1<<%d)%d    #%06d/%d", rval, loc_width,
