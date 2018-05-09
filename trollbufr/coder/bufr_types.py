@@ -39,11 +39,12 @@ RPL NIL  : Descriptor replication evaluated to zero replications.
 REP #n   : Descriptor and data repetition, all descriptor and data between
            this and REP END are to be repeated #n times.
 REP END  : End of desriptor and data repetition.
-OPR desc : Operator, which read and returned data values. 
-BMP DEF  : Use the data present bit-map to refer to the data descriptors 
+OPR desc : Operator, which read and returned data values.
+BMP DEF  : Use the data present bit-map to refer to the data descriptors
            which immediately precede the operator to which it relates.
            The bitmap is returned in the named tuple item 'value'.
 BMP USE  : Re-use the previously defined data present bit-map. Same as "BMP DEF".
+LOC desc : Local descriptor skipped, its bit-width was declared by operator.
 """
 
 BufrMetadataKeys = ("master",  # BUFR master version, WMO=0.

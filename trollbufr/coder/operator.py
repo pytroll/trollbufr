@@ -27,7 +27,7 @@ Created on Mar 31, 2017
 @author: amaul
 """
 import functions as fun
-from errors import BufrDecodeError
+from errors import BufrDecodeError, BufrEncodeError
 from bufr_types import DescrDataEntry, TabBType
 import logging
 
@@ -67,7 +67,7 @@ def eval_oper(subset, descr):
     logger.debug("OP %d", descr)
     am = descr // 1000 - 200
     if am not in res:
-        raise BufrDecodeError("Operator %06d not implemented." % descr)
+        raise BufrDecodeError("Operator %06d unknown." % descr)
     return res[am](subset, descr)
 
 
@@ -83,7 +83,7 @@ def prep_oper(subset, descr):
         3: fun_03_w,  # Set of new reference values
         4: fun_04,  # Add associated field, shall be followed by 031021
         5: fun_05_w,  # Signify with characters, plain language text as returned value
-        6: fun_noop,  # Length of local descriptor
+        6: fun_fail,  # Length of local descriptor
         7: fun_07,  # Change scale, reference, width
         8: fun_08,  # Change data width for characters
         9: fun_09,  # IEEE floating point representation
@@ -104,7 +104,7 @@ def prep_oper(subset, descr):
     logger.debug("OP %d", descr)
     am = descr // 1000 - 200
     if am not in res:
-        raise BufrDecodeError("Operator %06d not implemented." % descr)
+        raise BufrEncodeError("Operator %06d unknown." % descr)
     return res[am](subset, descr)
 
 
@@ -203,11 +203,17 @@ def fun_05_w(subset, descr):
 def fun_06_r(subset, descr):
     """Length of local descriptor"""
     an = descr % 1000
-    subset.get_val(subset._blob,
-                   subset.subs_num,
-                   fix_width=an)
+    v = subset.get_val(subset._blob,
+                       subset.subs_num,
+                       fix_width=an)
     subset._di += 1
-    return None
+    logger.debug("OP skip local desc '%s', %d bit = %d",
+                 subset._dl[subset._di], an, v)
+    l_rval = DescrDataEntry(descr,
+                            "LOC %06d" % (subset._dl[subset._di]),
+                            v,
+                            None)
+    return l_rval
 
 
 def fun_07(subset, descr):
@@ -313,7 +319,7 @@ def fun_statistic_write(subset, descr, an):
         subset.add_val(subset._blob, subset._vl, subset._vi, tab_b_elem=bar[0], alter=bar[1])
         subset._vi += 1
     else:
-        raise BufrDecodeError("Unknown operator '%d'!", descr)
+        raise BufrEncodeError("Unknown operator '%d'!", descr)
     return None
 
 
@@ -341,7 +347,7 @@ def fun_36_r(subset, descr):
                                          subset.subs_num,
                                          fix_width=1)
                           for _ in range(an)]
-    logger.debug("APPLY BITMAP (%d) %s", len(subset._bitmap), "".join([str(x) for x in subset._bitmap]))
+    logger.debug("APPLY BITMAP (%d) %s", len(subset._bitmap), subset._bitmap)
     subset._backref_record.apply(subset._bitmap)
     l_rval = DescrDataEntry(descr, "BMP DEF", subset._bitmap, None)
     return l_rval
@@ -377,11 +383,11 @@ def fun_37_w(subset, descr):
     """
     if descr == 237000:
         if ((subset.is_compressed
-             and isinstance(subset._vl[0][subset._vi], (list, tuple)))
-            or
-            (not subset.is_compressed
+                 and isinstance(subset._vl[0][subset._vi], (list, tuple)))
+                    or
+                    (not subset.is_compressed
                      and isinstance(subset._vl[subset._vi], (list, tuple)))
-            ):
+                ):
             subset._vi += 1
         subset._backref_record.reset()
     elif descr == 237255:

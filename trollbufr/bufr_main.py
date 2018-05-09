@@ -71,9 +71,15 @@ def read_bufr_data(args):
                     if args.sparse or (args.array and bufr.is_compressed):
                         for descr_entry in report.next_data():
                             if descr_entry.mark is not None:
-                                print("  ", descr_entry.mark, end="", file=fh_out)
-                                if descr_entry.value:
-                                    print("", "".join(str(x) for x in descr_entry.value), end="", file=fh_out)
+                                if isinstance(descr_entry.value, (list)):
+                                    descr_value = "".join([str(x) for x
+                                                           in descr_entry.value])
+                                else:
+                                    descr_value = descr_entry.value
+                                print("  ",
+                                      descr_entry.mark,
+                                      descr_value,
+                                      end="", file=fh_out)
                                 print(file=fh_out)
                                 continue
                             if descr_entry.value is None:
@@ -88,15 +94,15 @@ def read_bufr_data(args):
                     else:
                         for descr_entry in report.next_data():
                             if descr_entry.mark is not None:
-                                print("  ", descr_entry.mark, end="", file=fh_out)
-                                if descr_entry.value:
-                                    try:
-                                        print("",
-                                              "".join(str(x) for x in descr_entry.value),
-                                              end="", file=fh_out)
-                                    except StandardError as e:
-                                        logger.exception("%s", descr_entry)
-                                        raise e
+                                if isinstance(descr_entry.value, (list)):
+                                    descr_value = "".join([str(x) for x
+                                                           in descr_entry.value])
+                                else:
+                                    descr_value = descr_entry.value
+                                print("  ",
+                                      descr_entry.mark,
+                                      descr_value,
+                                      end="", file=fh_out)
                                 print(file=fh_out)
                                 continue
                             d_name, d_unit, d_typ = tabl.lookup_elem(descr_entry.descr)

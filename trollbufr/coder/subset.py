@@ -30,7 +30,7 @@ Created on Oct 28, 2016
 """
 import functions as fun
 import operator as op
-from errors import BufrDecodeError
+from errors import BufrDecodeError, BufrEncodeError
 from bufr_types import DescrDataEntry, AlterState, BackrefRecord
 import logging
 
@@ -449,7 +449,7 @@ class SubsetWriter():
                     if ln == 0:
                         # Decode next descr for loop-count
                         if self._dl[self._di] < 30000 or self._dl[self._di] >= 40000:
-                            raise BufrDecodeError("No count for  delayed loop!")
+                            raise BufrEncodeError("No count for delayed loop!")
                         elem_b = self._tables.tab_b[self._dl[self._di]]
                         self._di += 1
                         self.add_val(self._blob, loop_count or 0, self.subs_num, tab_b_elem=elem_b)
@@ -498,7 +498,7 @@ class SubsetWriter():
 
                 else:
                     """Invalid descriptor, out of defined range."""
-                    raise BufrDecodeError("Descriptor '%06d' invalid!" % self._dl[self._di])
+                    raise BufrEncodeError("Descriptor '%06d' invalid!" % self._dl[self._di])
 
         # Add padding bytes if required
         if self.edition <= 3:
