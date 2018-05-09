@@ -34,6 +34,7 @@ import coder.load_tables
 import coder.bufr_sect as sect
 from coder.subset import SubsetReader, SubsetWriter
 from coder.bdata import Blob
+from coder.tables import TabBElem
 from coder.functions import (descr_is_data, descr_is_loop, descr_is_oper,
                              descr_is_seq, descr_is_nil, get_descr_list)
 from coder.errors import (SUPPORTED_BUFR_EDITION, BufrDecodeError,
@@ -472,7 +473,8 @@ class Bufr(object):
                         for s in range(-self.subsets if as_array else -1, 0):
                             stack[s].append([[b] for b in descr_entry.value])
                 else:
-                    if isinstance(descr_entry.quality, (int, float)):
+                    if (descr_entry.quality is not None
+                            and not isinstance(descr_entry.quality, TabBElem)):
                         add_value(descr_entry.quality)
                     add_value(descr_entry.value)
         json_bufr.append(stack)
