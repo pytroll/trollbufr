@@ -444,8 +444,8 @@ class Bufr(object):
             def add_value(value):
                 stack[-1].append(value)
 
-        add_empty()
-        for report in self.next_subset(as_array):
+        for report in self.next_subset(as_array and self.is_compressed):
+            add_empty()
             rpl_i = 0
             for descr_entry in report.next_data():
                 if descr_entry.mark is not None:
@@ -473,8 +473,8 @@ class Bufr(object):
                             stack[s].append([[b] for b in descr_entry.value])
                 else:
                     if isinstance(descr_entry.quality, (int, float)):
-                        add_value(descr_entry.quality[s])
-                    add_value(descr_entry.value[s])
+                        add_value(descr_entry.quality)
+                    add_value(descr_entry.value)
         json_bufr.append(stack)
         json_bufr.append(["7777"])
         return json_bufr
