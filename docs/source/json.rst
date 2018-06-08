@@ -7,12 +7,20 @@ JSON Format for Input/Output
 
 Purpose
 -------
+The JSON object notation format was chosen because numerous reader are
+available, and it's also human-readable.
+The structure has its focus on values, rather any descriptive elements, as it
+is the same with binary BUFR.
 
 Decode BUFR to JSON Output
 --------------------------
+To decode a BUFR into a JSON object, either use the instance method
+`Bufr.decode()` or the command-line parameter ``-j | --decode-json``.
 
 Encode JSON Input to BUFR
 -------------------------
+To encode a file with a JSON object into binary BUFR, either use the instance
+method `Bufr.encode()` or the command-line parameter ``-e | --encode``.
 
 JSON Structure
 --------------
@@ -58,13 +66,20 @@ In contrast to the binary BUFR, there are NO length values denoting either the
 length of a section, or the ammount of repetition. On encoding they will be
 calculated, thus making the handling of delayed replication easier.
 
-Booleans and None
-~~~~~~~~~~~~~~~~~
+Booleans, None, Strings, and Numbers
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 With JSON, boolean values are encoded as ``true`` or ``false``, which is the
 case for some flag-values in sections 1 and 3.
 
 In the data section 4, for any `missing value` the keyword ``none`` is set in
 the JSON structure.
+
+Strings, or character sequences, are stored as sequences of ITA-5 (which is
+equivalent to US-ASCII) characters, surrounded with double-quotes ``"``.
+When encoding a JSON object as BUFR, the underlying functions take care of
+padding/truncating the strings to match the width as defined by the descriptor.
+
+Numbers are ... numbers. Either integer or decimal-point values.
 
 Section 0 -- Indicator section
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
