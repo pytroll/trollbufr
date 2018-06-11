@@ -12,39 +12,59 @@ Contents
    :maxdepth: 2
 
    tables
+   cmd
+   usage
+   json
    api
    examples
-   
+
 trollBUFR
 ---------
 The Python package ``trollbufr`` provides an API and some command-line scripts
-to read/decode BUFR messages.
+to read/decode and write/encode BUFR messages.
 
-Where comes the *troll* from? -- Well, this reader lives in the context of 
-PyTroll_ (an Open-Source-Software collaboration of several national 
-meteorological services and universities.)
+Where comes the *troll* from? -- Well, this package lives in the context of
+PyTroll_, an Open-Source-Software collaboration of several national
+meteorological services and universities.
 
 About BUFR
 ----------
-BUFR stands for "Binary Universal Format for data Representation". 
+BUFR stands for "Binary Universal Format for data Representation".
 It is a binary message format, developed as a "table-driven code form" (TDCF)
 by members of World Meteorological Organisation (WMO_).
 
 It's main use is the meteorological data exchange and storage. It is used
-in other fields of geo-science as well, e.g. oceanographics, and 
+in other fields of geo-science as well, e.g. oceanographics, and
 satellite-derived products.
 
-Find further information and detailed description at 
+Find further information and detailed description at
 http://www.wmo.int/pages/prog/www/WMOCodes.html
+
+News
+----
+With version 0.6.0 a feature for encoding a JSON formatted file into binary BUFR
+is added.
+
+The command-line options are changed:
+
+- `print information and descriptor sections`: ``-d`` became ``-m``.
+- `decode BUFR`: ``-r`` became ``-d``.
+
+New is ``-j`` to write any output in a JSON format.
 
 To-Do
 -----
-There are still thing to do:
+There are still things to do:
 
-- Script for table download/update
+- Support Python3
 - Implement the remaining obscure operators
 
 So, get involved at PyTroll_ or GitHub_!
+
+License
+-------
+
+trollBUFR is licensed under `GNU LGPL-3 <_static/LICENSE.txt>`_.
 
 Indices and tables
 ==================
@@ -54,5 +74,5 @@ Indices and tables
 - :ref:`search`
 
 .. _PyTroll: http://www.pytroll.org
-.. _GitHub: https://github.com/alexmaul/trollbufr
+.. _GitHub: https://github.com/pytroll/trollbufr
 .. _WMO: http://www.wmo.int

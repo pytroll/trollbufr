@@ -32,14 +32,16 @@ from tables import Tables
 
 logger = logging.getLogger("trollbufr")
 
-MODULE_PATTERN = "trollbufr.tab.parse_%s"
+MODULE_PATTERN = "trollbufr.coder.parse_%s"
 
 BUFR_TABLES_DEFAULT = "%s/.local/share/trollbufr" % (os.getenv('HOME'))
 
 _text_tab_loaded = "Table loaded: '%s'"
 
+
 def list_parser():
     return ["eccodes", "libdwd", "bufrdc"]
+
 
 def load_differ(tables, master, center, subcenter, master_vers, local_vers, base_path, tabf="eccodes"):
     """Load tables, if the versions differ from those already loaded."""
@@ -48,6 +50,7 @@ def load_differ(tables, master, center, subcenter, master_vers, local_vers, base
     else:
         logger.debug("Table loading not neccessary")
     return tables
+
 
 def load_all(master, center, subcenter, master_vers, local_vers, base_path, tabf="eccodes"):
     """Load all given versions of tables"""
@@ -195,4 +198,3 @@ def test_a():
 if __name__ == "__main__":
     test_b()
     pass
-

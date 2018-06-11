@@ -29,11 +29,27 @@ import logging
 import os
 
 from errors import BufrTableError
-from tables import TabBelem
+from tables import TabBElem
 
 logger = logging.getLogger("trollbufr")
 
 """
+##### Table files naming convention (Ed.3+4) #####
+
+vssswwwwwxxxxxyyyzzz
+
+v      - Bufr table (B, C, D)
+sss    - Master table number (000)
+wwwww  - Originating subcentre
+xxxxx  - Originating centre
+yyy    - Version number of master table used
+zzz    - Version number of local table used
+
+e.g. B0000000000098013001.TXT
+     C0000000000098013001.TXT
+     D0000000000098013001.TXT
+
+
 ##### Description of recognized table format #####
 
 B0000000000254019001.TXT
@@ -81,13 +97,14 @@ fxy    n    code xx name
 
 _default_table_dir = "%s/.local/share/trollbufr" % (os.getenv('HOME'))
 _table_file_names = {
-            "A": "A" + "0"*19 + ".TXT",
-            "B": "B%03d%07d%03d%03d%03d.TXT",
-            "C": "operator.table",
-            "D": "D%03d%07d%03d%03d%03d.TXT",
-            "CF": "C%03d%07d%03d%03d%03d.TXT",
-        }
+    "A": "A" + "0" * 19 + ".TXT",
+    "B": "B%03d%07d%03d%03d%03d.TXT",
+    "C": "operator.table",
+    "D": "D%03d%07d%03d%03d%03d.TXT",
+    "CF": "C%03d%07d%03d%03d%03d.TXT",
+}
 _text_file_not_found = "Table not found: '%s'"
+
 
 def load_tab_a(tables, fname):
     """Load table A (data category) from 'fname' into object Tables."""
@@ -95,7 +112,7 @@ def load_tab_a(tables, fname):
 #         raise BufrTableError(_text_file_not_found % fname)
 #     with open(fname, "rb") as fh:
 #         for line in fh:
-#             if line.startswith('#') or len(line) < 3:
+#             if line[0]=="#" or len(line) < 3:
 #                 continue
 #             d = None
 #             e = None
@@ -109,6 +126,7 @@ def load_tab_a(tables, fname):
 #     return True
     return False
 
+
 def load_tab_b(tables, fname):
     """Load table B (elements) from 'fname' into object Tables."""
     if not os.path.exists(fname):
@@ -116,7 +134,7 @@ def load_tab_b(tables, fname):
     with open(fname, "rb") as fh:
         for line in fh:
             try:
-                if line.startswith('#') or len(line) < 3:
+                if line[0]=="#" or len(line) < 3:
                     continue
                 e = None
                 el_descr = int(line[1:7])
@@ -132,12 +150,13 @@ def load_tab_b(tables, fname):
                 else:
                     el_typ = "N"
                 # descr, typ, unit, abbrev, full_name, scale, refval, width
-                e = TabBelem(el_descr, el_typ, el_unit, None, el_full_name, el_scale, el_refval, el_width)
+                e = TabBElem(el_descr, el_typ, el_unit, None, el_full_name, el_scale, el_refval, el_width)
                 tables.tab_b[int(el_descr)] = e
             except StandardError as exc:
                 logger.warning("Corrupt table %s (%s)", fname, line[0:8])
                 logger.warning(exc)
     return True
+
 
 def load_tab_c(tables, fname):
     """Load table C (operators) from 'fname' into object Tables."""
@@ -145,7 +164,7 @@ def load_tab_c(tables, fname):
 #         raise BufrTableError(_text_file_not_found % fname)
 #     with open(fname, "rb") as fh:
 #         for line in fh:
-#             if line.startswith('#') or len(line) < 3:
+#             if line[0]=="#" or len(line) < 3:
 #                 continue
 #             d = None
 #             e = None
@@ -161,6 +180,7 @@ def load_tab_c(tables, fname):
 #     return True
     return False
 
+
 def load_tab_d(tables, fname):
     """Load table D (sequences) from 'fname' into object Tables."""
     if not os.path.exists(fname):
@@ -169,7 +189,7 @@ def load_tab_d(tables, fname):
         desc = None
         e = []
         for line in fh:
-            if line.startswith('#') or len(line) < 3:
+            if line[0]=="#" or len(line) < 3:
                 continue
             try:
                 le = (line[1:7], line[7:10], line[10:17])
@@ -184,6 +204,7 @@ def load_tab_d(tables, fname):
                 raise BufrTableError(exc)
     return True
 
+
 def load_tab_cf(tables, fname):
     """
     Load table CF (code- and flagtables) into object Tables.
@@ -194,7 +215,7 @@ def load_tab_cf(tables, fname):
     with open(fname, "rb") as fh:
         la = ["" * 5]
         for line in fh:
-            if line.startswith('#') or len(line) < 3:
+            if line[0]=="#" or len(line) < 3:
                 continue
             l = line.rstrip()
             try:
@@ -213,9 +234,9 @@ def load_tab_cf(tables, fname):
                 raise BufrTableError(exc)
     return True
 
+
 def get_file(tabnum, base_path, master, center, subcenter, master_vers, local_vers):
     mp = lp = base_path
     m = os.path.join(mp, _table_file_names[tabnum] % (0, 0, 0, master_vers, 0))
     l = os.path.join(lp, _table_file_names[tabnum] % (0, 0, center, master_vers, local_vers))
     return (m, l)
-

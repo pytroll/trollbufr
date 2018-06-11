@@ -31,7 +31,7 @@ import os
 import re
 
 from errors import BufrTableError
-from tables import TabBelem
+from tables import TabBElem
 
 logger = logging.getLogger("trollbufr")
 
@@ -73,8 +73,9 @@ _table_file_names = {
     "C": "../../../operators.table",
     "D": "sequence.def",
     "CF": "codetables",
-    }
+}
 _text_file_not_found = "Table not found: '%s'"
+
 
 def load_tab_a(tables, fname):
     """Load table A (data category) from 'fname' into object Tables."""
@@ -82,7 +83,7 @@ def load_tab_a(tables, fname):
         raise BufrTableError(_text_file_not_found % fname)
     with open(fname, "rb") as fh:
         for line in fh:
-            if line.startswith('#') or len(line) < 3:
+            if line[0] == "#" or len(line) < 3:
                 continue
             d = None
             e = None
@@ -95,13 +96,14 @@ def load_tab_a(tables, fname):
             tables.tab_a[int(d)] = e
     return True
 
+
 def load_tab_b(tables, fname):
     """Load table B (elements) from 'fname' into object Tables."""
     if not os.path.exists(fname):
         raise BufrTableError(_text_file_not_found % fname)
     with open(fname, "rb") as fh:
         for line in fh:
-            if line.startswith('#') or len(line) < 3:
+            if line[0] == "#" or len(line) < 3:
                 continue
             e = None
             el = line.rstrip().split('|')
@@ -109,16 +111,18 @@ def load_tab_b(tables, fname):
             # code|abbreviation|type|name|unit|scale|reference|width|crex_unit|crex_scale|crex_width
             # descr, typ, unit, abbrev, full_name, scale, refval, width
             if el[2] == "table":
-                t = el[4].lower()
-                if "code table" in t:
-                    t = "code"
-                elif "flag table" in t:
-                    t = "flag"
+                t = "code"
+#                 t = el[4].lower()
+#                 if "code table" in t:
+#                     t = "code"
+#                 elif "flag table" in t:
+#                     t = "flag"
             else:
                 t = el[2]
-            e = TabBelem(int(el[0]), t, el[4], el[1], el[3], int(el[5]), int(el[6]), int(el[7]))
+            e = TabBElem(int(el[0]), t, el[4], el[1], el[3], int(el[5]), int(el[6]), int(el[7]))
             tables.tab_b[int(el[0])] = e
     return True
+
 
 def load_tab_c(tables, fname):
     """Load table C (operators) from 'fname' into object Tables."""
@@ -126,7 +130,7 @@ def load_tab_c(tables, fname):
         raise BufrTableError(_text_file_not_found % fname)
     with open(fname, "rb") as fh:
         for line in fh:
-            if line.startswith('#') or len(line) < 3:
+            if line[0] == "#" or len(line) < 3:
                 continue
             d = None
             e = None
@@ -135,12 +139,13 @@ def load_tab_c(tables, fname):
             # code|abbreviation|type|name|unit|scale|reference|width|crex_unit|crex_scale|crex_width
             #  y     y           n    y    n...
             d = el[0]
-            e = (el[1], el[3])
+            e = (el[1].strip(), el[3].strip())
             if d.endswith("YYY"):
                 tables.tab_c[int(d[0:3])] = e
             else:
                 tables.tab_c[int(d)] = e
     return True
+
 
 def load_tab_d(tables, fname):
     """Load table D (sequences) from 'fname' into object Tables."""
@@ -153,7 +158,7 @@ def load_tab_d(tables, fname):
         e = []
         cline = ""
         for line in fh:
-            if line.startswith('#') or len(line) < 3:
+            if line[0] == "#" or len(line) < 3:
                 continue
             # Some eccodes' sequence.tab have newline inside a sequence-array,
             # we can assume this happens when matcher m is None.
@@ -172,6 +177,7 @@ def load_tab_d(tables, fname):
             cline = ""
     return True
 
+
 def load_tab_cf(tables, fname):
     """
     Load table E (code- and flagtables) into object Tables.
@@ -183,7 +189,7 @@ def load_tab_cf(tables, fname):
         desc = os.path.basename(fn_etab).split('.')
         with open(fn_etab, "rb") as fh:
             for line in fh:
-                if line.startswith('#') or len(line) < 3:
+                if line[0] == "#" or len(line) < 3:
                     continue
                 try:
                     e = line.rstrip().split(' ', 2)
@@ -193,6 +199,7 @@ def load_tab_cf(tables, fname):
                 except IndexError:
                     logger.warn("Table parse: no values: '%s' in '%s'", line.strip(), fn_etab)
     return True
+
 
 def get_file(tabnum, base_path, master, center, subcenter, master_vers, local_vers):
     mp = os.path.join(base_path, str(master), "wmo", str(master_vers))
@@ -204,4 +211,3 @@ def get_file(tabnum, base_path, master, center, subcenter, master_vers, local_ve
         m = os.path.join(mp, _table_file_names[tabnum])
         l = os.path.join(lp, _table_file_names[tabnum])
     return (m, l)
-
