@@ -24,6 +24,17 @@ Command-line interface created by setup-py.
 * Decoding to JSON-formated file.
 * Encoding JSON-formated values to BUFR.
 
+## News
+With version 0.6.0 a feature for encoding a JSON formatted file into binary BUFR
+is added.
+
+The command-line options are changed:
+
+* print information and descriptor sections: `-d` became `-m`.
+* decode BUFR: `-r` became `-d`.
+
+New is `-j` to write any output in a JSON format.
+
 ## To-Do
 There are still things to do:
 

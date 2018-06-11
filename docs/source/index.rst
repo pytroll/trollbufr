@@ -40,6 +40,18 @@ satellite-derived products.
 Find further information and detailed description at
 http://www.wmo.int/pages/prog/www/WMOCodes.html
 
+News
+----
+With version 0.6.0 a feature for encoding a JSON formatted file into binary BUFR
+is added.
+
+The command-line options are changed:
+
+- `print information and descriptor sections`: ``-d`` became ``-m``.
+- `decode BUFR`: ``-r`` became ``-d``.
+
+New is ``-j`` to write any output in a JSON format.
+
 To-Do
 -----
 There are still things to do:
@@ -52,7 +64,7 @@ So, get involved at PyTroll_ or GitHub_!
 License
 -------
 
-trollBUFR is licensed under `GNU GPL-3 <_static/LICENSE.txt>`_.
+trollBUFR is licensed under `GNU LGPL-3 <_static/LICENSE.txt>`_.
 
 Indices and tables
 ==================
