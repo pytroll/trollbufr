@@ -167,6 +167,9 @@ def load_tab_d(tables, fname):
                 e.append(int(le[-1]))
             except BaseException as e:
                 raise BufrTableError(e)
+            else:
+                if len(e):
+                    tables.tab_d[int(desc)] = tuple(e)
     return True
 
 
