@@ -158,19 +158,25 @@ def read_bufr_to_json(args):
             bufr_i += 1
             if args.bulletin is not None and bufr_i != args.bulletin:
                 continue
-            json_data.append({"heading": header,
+            json_data_item = {"heading": header,
                               "file": os.path.basename(fn_in),
                               "index": bufr_i,
-                              })
+                              "status": False,
+                              "error": None,
+                              "bufr": None,
+                              }
             try:
                 json_bufr = bufr.decode(blob,
                                         load_tables=True,
                                         as_array=args.array)
             except StandardError as e:
                 logger.error(e, exc_info=1 and logger.isEnabledFor(logging.DEBUG))
-                json_data[-1]["error"] = str(e)
+                json_data_item["error"] = str(e)
             else:
-                json_data[-1]["bufr"] = json_bufr
+                json_data_item["status"] = True
+                json_data_item["bufr"] = json_bufr
+            finally:
+                json_data.append(json_data_item)
     import json
     out_fh = open(args.out_file, "wb") or sys.stdout
     with out_fh as fh_out:
