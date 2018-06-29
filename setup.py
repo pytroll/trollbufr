@@ -47,8 +47,8 @@ setup(name="trollbufr",
                    "Programming Language :: Python :: 2",
                    "Programming Language :: Python :: 2.6",
                    "Programming Language :: Python :: 2.7",
-                   "Topic :: Scientific/Engineering",
-                   "Topic :: Scientific/Engineering :: Geo-Science"],
+                   "Topic :: Scientific/Engineering"
+                   ],
       test_suite="bufr.tests.suite",
       entry_points={
           "console_scripts": ["trollbufr = trollbufr.bufr_main:run",

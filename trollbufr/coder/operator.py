@@ -334,7 +334,20 @@ def fun_36_r(subset, descr):
     """Define data present bit-map."""
     # Evaluate following replication descr.
     subset._di += 1
-    am, an, _ = subset.eval_loop_descr(record=False)
+    if fun.descr_is_loop(subset._dl[subset._di]):
+        # How bitmaps should be done.
+        am, an, _ = subset.eval_loop_descr(record=False)
+    elif subset._dl[subset._di] == 31031:
+        # Bitmap not as replication, but explicit 031031-list in sect3.
+        am = 1
+        an = 0
+        loc_di = subset._di
+        while subset._dl[loc_di] == 31031:
+            # Count 031031.
+            an += 1
+            loc_di += 1
+        # Set descriptor index to last of the 031031.
+        subset._di=loc_di-1
     if am != 1 or subset._dl[subset._di] != 31031:
         raise BufrDecodeError("Fault in replication defining bitmap!")
     if subset._as_array:
@@ -384,9 +397,9 @@ def fun_37_w(subset, descr):
     if descr == 237000:
         if ((subset.is_compressed
                  and isinstance(subset._vl[0][subset._vi], (list, tuple)))
-                    or
-                    (not subset.is_compressed
-                     and isinstance(subset._vl[subset._vi], (list, tuple)))
+                or
+                (not subset.is_compressed
+                 and isinstance(subset._vl[subset._vi], (list, tuple)))
                 ):
             subset._vi += 1
         subset._backref_record.reset()
