@@ -381,6 +381,10 @@ class SubsetWriter():
         self._vl = subset_list
         # Index in current values list
         self._vi = 0
+        if not subset_list:
+            # On empty subset_list there is nothing to do.
+            logger.info("SUBSETS 0 -> empty data section.")
+            return
         if self.is_compressed:
 
             def extract_loop_list(vl, vi):
