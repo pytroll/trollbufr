@@ -176,7 +176,10 @@ class SubsetReader(object):
                                             fix_width=self._alter.assoc[-1])
                     else:
                         qual = None
-                    elem_b = self._tables.tab_b[self._dl[self._di]]
+                    try:
+                        elem_b = self._tables.tab_b[self._dl[self._di]]
+                    except KeyError as e:
+                        raise BufrDecodeError("Unknown descriptor {}".format(e))
                     self._di += 1
                     value = self.get_val(self._blob,
                                          self.subs_num,
@@ -234,7 +237,10 @@ class SubsetReader(object):
                     stack.append((self._dl, self._di + 1, self._de, "SEQ END"))
                     prevdesc = self._dl[self._di]
                     # Sequence from tabD
-                    self._dl = self._tables.tab_d[self._dl[self._di]]
+                    try:
+                        self._dl = self._tables.tab_d[self._dl[self._di]]
+                    except KeyError as e:
+                        raise BufrDecodeError("Unknown descriptor {}".format(e))
                     # Expansion on stack
                     logger.debug("PUSH seq -> *%d %d..%d", len(self._dl), 0, len(self._dl))
                     stack.append((self._dl, 0, len(self._dl), "SEQ %06d" % prevdesc))
@@ -268,7 +274,10 @@ class SubsetReader(object):
             # Decode next descr for loop-count
             if self._dl[self._di] < 30000 or self._dl[self._di] >= 40000:
                 raise BufrDecodeError("No count (031YYY) for delayed loop!")
-            elem_b = self._tables.tab_b[self._dl[self._di]]
+            try:
+                elem_b = self._tables.tab_b[self._dl[self._di]]
+            except KeyError as e:
+                raise BufrDecodeError("Unknown descriptor {}".format(e))
             loop_num = self.get_val(self._blob,
                                     self.subs_num,
                                     fix_width=elem_b.width)
@@ -426,7 +435,10 @@ class SubsetWriter():
                         self.add_val(self._blob, self._vl, self._vi,
                                      fix_width=self._alter.assoc[-1])
                         self._vi += 1
-                    elem_b = self._tables.tab_b[self._dl[self._di]]
+                    try:
+                        elem_b = self._tables.tab_b[self._dl[self._di]]
+                    except KeyError as e:
+                        raise BufrDecodeError("Unknown descriptor {}".format(e))
                     self.add_val(self._blob, self._vl, self._vi, tab_b_elem=elem_b, alter=self._alter)
                     if self._do_backref_record:
                         self._backref_record.append(elem_b, self._alter)
@@ -450,7 +462,10 @@ class SubsetWriter():
                         # Decode next descr for loop-count
                         if self._dl[self._di] < 30000 or self._dl[self._di] >= 40000:
                             raise BufrEncodeError("No count for delayed loop!")
-                        elem_b = self._tables.tab_b[self._dl[self._di]]
+                        try:
+                            elem_b = self._tables.tab_b[self._dl[self._di]]
+                        except KeyError as e:
+                            raise BufrDecodeError("Unknown descriptor {}".format(e))
                         self._di += 1
                         self.add_val(self._blob, loop_count or 0, self.subs_num, tab_b_elem=elem_b)
                         # Descriptors 31011+31012 mean repetition, not replication
@@ -489,7 +504,10 @@ class SubsetWriter():
                     logger.debug("PUSH jump -> *%d %d..%d #%d", len(self._dl), self._di + 1, self._de, self._vi)
                     stack.append((self._dl, self._di + 1, self._de, None, None))
                     # Sequence from tabD
-                    dl = self._tables.tab_d[self._dl[self._di]]
+                    try:
+                        dl = self._tables.tab_d[self._dl[self._di]]
+                    except KeyError as e:
+                        raise BufrDecodeError("Unknown descriptor {}".format(e))
                     # Expansion on stack
                     logger.debug("PUSH seq -> *%d %d..%d #%d", len(self._dl), 0, len(self._dl), self._vi)
                     stack.append((dl, 0, len(dl), None, None))
