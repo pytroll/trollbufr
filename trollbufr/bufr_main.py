@@ -233,7 +233,7 @@ def write_bufr(args):
         with open(fn_in, "rb") as fh_in:
             json_data = json.load(fh_in)
         for json_data_msg in json_data:
-            if not "bufr" in json_data_msg:
+            if not "bufr" in json_data_msg or json_data_msg["bufr"] is None:
                 continue
             bufr = Bufr(tab_fmt=args.tables_type,
                         tab_path=args.tables_path)
