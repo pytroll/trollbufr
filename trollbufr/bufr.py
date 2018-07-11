@@ -205,6 +205,8 @@ class Bufr(object):
 
     def next_subset_array(self):
         logger.info("SUBSETS %d", self.subsets)
+        if self._blob.p >= self._data_e:
+            raise StopIteration
         # Create new Subset object
         subset = SubsetReader(self._tables,
                               self._blob,
