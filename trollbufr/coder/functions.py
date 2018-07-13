@@ -205,7 +205,7 @@ def rval2str(rval):
         rval >>= 8
     octets.reverse()
     val = "".join(octets)
-    return val
+    return val.decode("latin1").encode("utf8")
 
 
 _IEEE_INF = {32: ("f", 0x7f7fffff), 64: ("d", 0x7fefffffffffffff)}
@@ -300,6 +300,7 @@ def num2rval(tab_b_elem, alter, value):
         loc_width = alter.wchr or tab_b_elem.width
         loc_refval = tab_b_elem.refval
         loc_scale = tab_b_elem.scale
+        value = value.encode("latin1") if value is not None else value
     else:
         loc_width = tab_b_elem.width + alter.wnum
         loc_refval = alter.refval.get(tab_b_elem.descr, tab_b_elem.refval * alter.refmul)
