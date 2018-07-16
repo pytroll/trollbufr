@@ -96,10 +96,13 @@ def calc_width(bin_data, tab_b_elem=None, alter=None, fix_width=None, fix_typ=No
 
 
 def get_val(bin_data, subs_num, tab_b_elem=None, alter=None, fix_width=None, fix_typ=None):
-    loc_width, _ = calc_width(bin_data, tab_b_elem, alter, fix_width, fix_typ)
+    loc_width, loc_typ = calc_width(bin_data, tab_b_elem, alter, fix_width, fix_typ)
     rval = bin_data.read_bits(loc_width)
     if fix_width is not None:
-        return rval
+        if loc_typ == TabBType.STRING:
+            return rval2str(rval)
+        else:
+            return rval
     else:
         return rval2num(tab_b_elem, alter, rval)
 
@@ -111,7 +114,10 @@ def get_val_comp(bin_data, subs_num, tab_b_elem=None, alter=None, fix_width=None
                        subs_num,
                        loc_typ or TabBType.LONG)
     if fix_width is not None:
-        return rval
+        if loc_typ == TabBType.STRING:
+            return rval2str(rval)
+        else:
+            return rval
     else:
         return rval2num(tab_b_elem, alter, rval)
 
@@ -124,6 +130,8 @@ def get_val_array(bin_data, subs_num, tab_b_elem=None, alter=None, fix_width=Non
                           loc_typ or TabBType.LONG)
     if fix_width is None:
         rval_ary = [rval2num(tab_b_elem, alter, rval) for rval in rval_ary]
+    elif loc_typ == TabBType.STRING:
+        rval_ary = [rval2str(rval) for rval in rval_ary]
     return rval_ary
 
 
@@ -197,7 +205,7 @@ def rval2str(rval):
         rval >>= 8
     octets.reverse()
     val = "".join(octets)
-    return val
+    return val.decode("latin1").encode("utf8")
 
 
 _IEEE_INF = {32: ("f", 0x7f7fffff), 64: ("d", 0x7fefffffffffffff)}
@@ -292,6 +300,7 @@ def num2rval(tab_b_elem, alter, value):
         loc_width = alter.wchr or tab_b_elem.width
         loc_refval = tab_b_elem.refval
         loc_scale = tab_b_elem.scale
+        value = value.encode("latin1") if value is not None else value
     else:
         loc_width = tab_b_elem.width + alter.wnum
         loc_refval = alter.refval.get(tab_b_elem.descr, tab_b_elem.refval * alter.refmul)
