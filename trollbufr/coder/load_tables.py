@@ -39,6 +39,33 @@ BUFR_TABLES_DEFAULT = "%s/.local/share/trollbufr" % (os.getenv('HOME'))
 _text_tab_loaded = "Table loaded: '%s'"
 
 
+class TableCache(object):
+
+    _CACHE_MAX_SIZE = 10
+
+    def __init__(self, base_path, tabf="eccodes"):
+        self._base_path = base_path
+        self._tabf = tabf
+        self._cache = []
+
+    def __str__(self):
+        kl = (k for k, _ in self._cache)
+        return ", ".join("-".join(str(x) for x in k) for k in kl)
+
+    def load(self, master, center, subcenter, master_vers, local_vers):
+        key = (master, center, subcenter, master_vers, local_vers)
+        for ckey, tables in self._cache:
+            if ckey == key:
+                logger.debug("%s from cache", "-".join(str(x) for x in key))
+                break
+        else:
+            tables = load_all(master, center, subcenter, master_vers, local_vers, self._base_path, self._tabf)
+            self._cache.append((key, tables))
+            if len(self._cache) > TableCache._CACHE_MAX_SIZE:
+                self._cache = self._cache[1:]
+        return tables
+
+
 def list_parser():
     return ["eccodes", "libdwd", "bufrdc"]
 
