@@ -56,7 +56,7 @@ class TableCache(object):
         key = (master, center, subcenter, master_vers, local_vers)
         for ckey, tables in self._cache:
             if ckey == key:
-                logger.debug("%s from cache", "-".join(str(x) for x in key))
+                logger.info("Tables from cache: %s", "-".join(str(x) for x in key))
                 break
         else:
             tables = load_all(master, center, subcenter, master_vers, local_vers, self._base_path, self._tabf)
