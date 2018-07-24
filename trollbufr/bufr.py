@@ -146,7 +146,6 @@ class Bufr(object):
                                               self._meta['mver'],
                                               self._meta['lver'],
                                               )
-        logger.debug("Table cache: %s", self._table_cache)
         if self._tables is None:
             raise BufrTableError("No table loaded!")
         return self._tables
