@@ -39,6 +39,33 @@ BUFR_TABLES_DEFAULT = "%s/.local/share/trollbufr" % (os.getenv('HOME'))
 _text_tab_loaded = "Table loaded: '%s'"
 
 
+class TableCache(object):
+
+    _CACHE_MAX_SIZE = 10
+
+    def __init__(self, base_path, tabf="eccodes"):
+        self._base_path = base_path
+        self._tabf = tabf
+        self._cache = []
+
+    def __str__(self):
+        kl = (k for k, _ in self._cache)
+        return ", ".join("-".join(str(x) for x in k) for k in kl)
+
+    def load(self, master, center, subcenter, master_vers, local_vers):
+        key = (master, center, subcenter, master_vers, local_vers)
+        for ckey, tables in self._cache:
+            if ckey == key:
+                logger.info("Tables from cache: %s", "-".join(str(x) for x in key))
+                break
+        else:
+            tables = load_all(master, center, subcenter, master_vers, local_vers, self._base_path, self._tabf)
+            self._cache.append((key, tables))
+            if len(self._cache) > TableCache._CACHE_MAX_SIZE:
+                self._cache = self._cache[1:]
+        return tables
+
+
 def list_parser():
     return ["eccodes", "libdwd", "bufrdc"]
 
@@ -120,81 +147,3 @@ def load_all(master, center, subcenter, master_vers, local_vers, base_path, tabf
         logger.warning(er)
 
     return tables
-
-
-def test_b():
-    base_path = "tables"
-    master = 0
-    center = 78
-    subcenter = 0
-    master_vers = 24
-    local_vers = 8
-
-    _tabformat_eccodes = "eccodes"
-    _tabformat_libdwd = "libdwd"
-    tabf = _tabformat_eccodes
-    t = load_all(master, center, subcenter, master_vers, local_vers, base_path, tabf)
-    print len(t.tab_b), len(t.tab_c), len(t.tab_d), len(t.tab_cf), t
-
-    print "TAB_B"
-    for k, v in t.tab_b.items()[0:10]:
-        print k, v
-    print "TAB_C"
-    for k, v in t.tab_c.items()[0:10]:
-        print k, v
-    print "TAB_D"
-    for k, v in t.tab_d.items()[0:10]:
-        print k, v
-    print "TAB_CF"
-    for k, v in t.tab_cf.items()[0:10]:
-        print k, v
-
-    tabf = _tabformat_libdwd
-    t = load_all(master, center, subcenter, master_vers, local_vers, base_path, tabf)
-    print len(t.tab_b), len(t.tab_c), len(t.tab_d), len(t.tab_cf), t
-
-
-def test_a():
-    base_path = "%s/BUFRtables" % (os.getenv('HOME'))
-    master = 0
-    center = 78
-    subcenter = 0
-    master_vers = 24
-    local_vers = 8
-
-    for tabf in list_parser():
-        tparse = import_module("tab.%s" % list_parser())
-        tables = Tables(master, master_vers, local_vers, center, subcenter)
-        mp, lp = tparse.get_file(tabf, "B", base_path, master, center, subcenter, master_vers, local_vers)
-        print mp, lp, os.path.exists(mp), os.path.exists(lp)
-        tparse.load_tab_b(tables, tabf, mp)
-        tparse.load_tab_b(tables, tabf, lp)
-        mp, lp = tparse.get_file(tabf, "C", base_path, master, center, subcenter, master_vers, local_vers)
-        print mp, lp, os.path.exists(mp), os.path.exists(lp)
-        tparse.load_tab_c(tables, tabf, mp)
-        tparse.load_tab_c(tables, tabf, lp)
-        mp, lp = tparse.get_file(tabf, "CF", base_path, master, center, subcenter, master_vers, local_vers)
-        print mp, lp, os.path.exists(mp), os.path.exists(lp)
-        tparse.load_tab_cf(tables, tabf, mp)
-        tparse.load_tab_cf(tables, tabf, lp)
-        mp, lp = tparse.get_file(tabf, "D", base_path, master, center, subcenter, master_vers, local_vers)
-        print mp, lp, os.path.exists(mp), os.path.exists(lp)
-        tparse.load_tab_d(tables, tabf, mp)
-        tparse.load_tab_d(tables, tabf, lp)
-
-    import pickle
-    with open("table_%s_%03d_%03d-%03d_%03d.dat" % ('a', master_vers, center, subcenter, local_vers), "wb") as ph:
-        pickle.dump(tables.tab_a, ph)
-    with open("table_%s_%03d_%03d-%03d_%03d.dat" % ('b', master_vers, center, subcenter, local_vers), "wb") as ph:
-        pickle.dump(tables.tab_b, ph)
-    with open("table_%s_%03d_%03d-%03d_%03d.dat" % ('c', master_vers, center, subcenter, local_vers), "wb") as ph:
-        pickle.dump(tables.tab_c, ph)
-    with open("table_%s_%03d_%03d-%03d_%03d.dat" % ('d', master_vers, center, subcenter, local_vers), "wb") as ph:
-        pickle.dump(tables.tab_d, ph)
-    with open("table_%s_%03d_%03d-%03d_%03d.dat" % ('cf', master_vers, center, subcenter, local_vers), "wb") as ph:
-        pickle.dump(tables.tab_cf, ph)
-
-
-if __name__ == "__main__":
-    test_b()
-    pass

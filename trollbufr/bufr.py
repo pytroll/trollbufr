@@ -30,7 +30,7 @@ Each subset is held in an instance of class :class:`~trollbufr.read.Subset`,
 which has the iterator function `next_data()` to iterate over all bin_data elements
 in this subset.
 """
-import coder.load_tables
+from coder.load_tables import TableCache
 import coder.bufr_sect as sect
 from coder.subset import SubsetReader, SubsetWriter
 from coder.bdata import Blob
@@ -61,6 +61,7 @@ class Bufr(object):
     # Format of tables
     _tab_f = None
     # Holds table object
+    _table_cache = None
     _tables = None
     # Edition
     edition = 4
@@ -72,6 +73,7 @@ class Bufr(object):
     def __init__(self, tab_fmt, tab_path, bin_data=None, json_obj=None):
         self._tab_p = tab_path
         self._tab_f = tab_fmt
+        self._table_cache = TableCache(tab_path, tab_fmt)
         if bin_data is not None:
             self._blob = bin_data
             self._meta = self.decode(bin_data)
@@ -138,15 +140,12 @@ class Bufr(object):
         """Load all tables referenced by the BUFR"""
         if not len(self._meta):
             raise BufrTableError("No table loaded!")
-        self._tables = coder.load_tables.load_differ(self._tables,
-                                                     self._meta['master'],
-                                                     self._meta['center'],
-                                                     self._meta['subcenter'],
-                                                     self._meta['mver'],
-                                                     self._meta['lver'],
-                                                     self._tab_p,
-                                                     self._tab_f
-                                                     )
+        self._tables = self._table_cache.load(self._meta['master'],
+                                              self._meta['center'],
+                                              self._meta['subcenter'],
+                                              self._meta['mver'],
+                                              self._meta['lver'],
+                                              )
         if self._tables is None:
             raise BufrTableError("No table loaded!")
         return self._tables
