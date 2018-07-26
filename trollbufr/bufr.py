@@ -448,7 +448,7 @@ class Bufr(object):
 
         for report in self.next_subset(as_array and self.is_compressed):
             add_empty()
-            rpl_i = 0
+            rpl_i = [0]
             for descr_entry in report.next_data():
                 if descr_entry.mark is not None:
                     mark_el = descr_entry.mark.split(" ")
@@ -456,19 +456,21 @@ class Bufr(object):
                         if len(mark_el) == 3:
                             # Replication starts
                             add_empty()
-                            rpl_i = 0
+                            rpl_i.append(0)
                         elif mark_el[1] == "END":
                             # Replication ends
                             hook_over()
                             hook_over()
+                            rpl_i.pop()
                         elif mark_el[1] == "NIL":
                             # No iterations
                             hook_over()
+                            rpl_i.pop()
                         else:
                             # For each iteration:
-                            if rpl_i:
+                            if rpl_i[-1]:
                                 hook_over()
-                            rpl_i += 1
+                            rpl_i[-1] += 1
                             add_empty()
                     elif descr_entry.mark == "BMP DEF":
                         for s in range(-self.subsets if as_array else -1, 0):
