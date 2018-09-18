@@ -3,6 +3,8 @@
 #
 # Copyright (c) 2016 Alexander Maul
 #
+# Ported to Py3  09/2018
+#
 # Author(s):
 #
 #   Alexander Maul <alexander.maul@dwd.de>
@@ -25,15 +27,15 @@ Created on Oct 27, 2016
 @author: amaul
 '''
 import re
-import coder.functions as f
-from coder.bdata import Blob
-from coder.errors import BufrDecodeWarning
+from trollbufr.coder import functions as f
+from trollbufr.coder.bdata import Blob
+from trollbufr.coder.errors import BufrDecodeWarning
 
 import logging
 logger = logging.getLogger("trollbufr")
 
 """This RE matches any Abbreviated Heading Line"""
-_re_ahl = re.compile(r"[^A-Z0-9]*?([A-Z]{4}[0-9]{2} [A-Z]{4} [0-9]{6}(?: [ACR][A-Z]{2})?)[^A-Z0-9]+")
+_re_ahl = re.compile(b"[^A-Z0-9]*?([A-Z]{4}[0-9]{2} [A-Z]{4} [0-9]{6}(?: [ACR][A-Z]{2})?)[^A-Z0-9]+")
 
 
 def next_bufr(path=None, bin_data=None):
@@ -59,7 +61,7 @@ def next_bufr(path=None, bin_data=None):
     while offs < len(bin_data):
         # Search for next BUFR
         bstart = offs
-        while bin_data[bstart: bstart + 4] != "BUFR":
+        while bin_data[bstart: bstart + 4] != b"BUFR":
             bstart += 1
             if bstart >= len(bin_data) - 30:
                 # reached end-of-bin_data
@@ -74,7 +76,7 @@ def next_bufr(path=None, bin_data=None):
                      0 if m is None else m.groups()[0]
                      )
         if m is not None:
-            header = m.groups()[0]
+            header = str(m.groups()[0])
         else:
             header = None
         # Bufr starts here
@@ -86,7 +88,7 @@ def next_bufr(path=None, bin_data=None):
         bend = bstart + size
         offs = bend
         # Check if end is correct
-        if bin_data[bend - 4: bend] != "7777":
+        if bin_data[bend - 4: bend] != b"7777":
             # The bufr is corrupt if section5 is not correct
             logger.error("End '7777' not found")
             raise BufrDecodeWarning("Bufr offset/length error!")
@@ -99,6 +101,6 @@ def next_bufr(path=None, bin_data=None):
 
 if __name__ == "__main__":
     import sys
-    print sys.argv
+    print(sys.argv)
     for b in next_bufr(path=sys.argv[1]):
-        print b
+        print(b)

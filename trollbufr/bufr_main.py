@@ -3,6 +3,8 @@
 #
 # Copyright (c) 2016,2017 Alexander Maul
 #
+# Ported to Py3  09/2018
+#
 # Author(s):
 #
 #   Alexander Maul <alexander.maul@dwd.de>
@@ -25,16 +27,16 @@ trollbufr.reader
 Command-line interface, reads BUFR (with abbreviated heading line,
 if present) from file(s) and writes human-readable to stdout.
 '''
-from __future__ import print_function
+
 
 import sys
 import os
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
-from version import __version__
-from bufr import Bufr
-from coder.bufr_types import TabBType
-import load_file
-import coder.load_tables
+from .version import __version__
+from .bufr import Bufr
+from trollbufr.coder.bufr_types import TabBType
+from . import load_file
+import trollbufr.coder.load_tables
 
 import logging
 logger = logging.getLogger("trollbufr")
@@ -48,7 +50,7 @@ def read_bufr_data(args):
     per all subsets at once, which improves performance for compressed BUFR.
     """
     try:
-        fh_out = open(args.out_file, "wb")
+        fh_out = open(args.out_file, "w")
     except:
         fh_out = sys.stdout
     bufr = Bufr(args.tables_type, args.tables_path)
@@ -137,7 +139,7 @@ def read_bufr_data(args):
                                              d_name,
                                              str(descr_entry.value),
                                              d_unit), file=fh_out)
-            except StandardError as e:
+            except Exception as e:
                 print("ERROR\t%s" % e, file=fh_out)
                 if logger.isEnabledFor(logging.DEBUG):
                     logger.exception(e)
@@ -169,7 +171,7 @@ def read_bufr_to_json(args):
                 json_bufr = bufr.decode(blob,
                                         load_tables=True,
                                         as_array=args.array)
-            except StandardError as e:
+            except Exception as e:
                 logger.error(e, exc_info=1 and logger.isEnabledFor(logging.DEBUG))
                 json_data_item["error"] = str(e)
             else:
@@ -178,7 +180,7 @@ def read_bufr_to_json(args):
             finally:
                 json_data.append(json_data_item)
     import json
-    out_fh = open(args.out_file, "wb") or sys.stdout
+    out_fh = open(args.out_file, "w") or sys.stdout
     with out_fh as fh_out:
         if args.sparse:
             json.dump(json_data, fh_out)
@@ -190,7 +192,7 @@ def read_bufr_desc(args):
     """Read BUFR(s), decode meta-data and descriptor list, write to file-handle.
     """
     try:
-        fh_out = open(args.out_file, "wb")
+        fh_out = open(args.out_file, "w")
     except:
         fh_out = sys.stdout
     for fn_in in args.in_file:
@@ -212,7 +214,7 @@ def read_bufr_desc(args):
                 else:
                     d = bufr.get_descr_full()
                 print("DESC :\n%s" % "\n".join(d), file=fh_out)
-            except StandardError as e:
+            except Exception as e:
                 print("ERROR\t%s" % e, file=fh_out)
                 if logger.isEnabledFor(logging.DEBUG):
                     logger.exception(e)
@@ -230,7 +232,7 @@ def write_bufr(args):
         fh_out = sys.stdout
     multi_bul = False
     for fn_in in args.in_file:
-        with open(fn_in, "rb") as fh_in:
+        with open(fn_in, "r") as fh_in:
             json_data = json.load(fh_in)
         for json_data_msg in json_data:
             if not "bufr" in json_data_msg or json_data_msg["bufr"] is None:
@@ -240,8 +242,8 @@ def write_bufr(args):
             bin_data = bufr.encode(json_data_msg["bufr"],
                                    load_tables=True)
             if json_data_msg["heading"] is not None:
-                multi_bul and print("\r\r\n\r\r\n", end="", file=fh_out)
-                print("%s\r\r" % json_data_msg["heading"], file=fh_out)
+                multi_bul and print(b"\r\r\n\r\r\n", end="", file=fh_out)
+                print(b"%s\r\r" % json_data_msg["heading"], file=fh_out)
             print(bin_data, end="", file=fh_out)
             multi_bul = True
     if fh_out is not sys.stdout:
@@ -306,11 +308,11 @@ def run(argv=None):
                                metavar="path"
                                )
         group_tab.add_argument("-T", "--tables_type",
-                               default=coder.load_tables.list_parser()[0],
-                               choices=coder.load_tables.list_parser(),
+                               default=trollbufr.coder.load_tables.list_parser()[0],
+                               choices=trollbufr.coder.load_tables.list_parser(),
                                help="type of table format [%s], default: %s" % (
-                                    "|".join(coder.load_tables.list_parser()),
-                                   coder.load_tables.list_parser()[0]
+                                    "|".join(trollbufr.coder.load_tables.list_parser()),
+                                   trollbufr.coder.load_tables.list_parser()[0]
                                ),
                                metavar="name"
                                )
@@ -375,7 +377,7 @@ def run(argv=None):
 
     except KeyboardInterrupt:
         return 0
-    except StandardError as e:
+    except Exception as e:
         if logger.isEnabledFor(logging.DEBUG):
             logger.exception(e)
         else:

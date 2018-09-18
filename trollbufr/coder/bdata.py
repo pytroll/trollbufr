@@ -3,6 +3,8 @@
 #
 # Copyright (c) 2016 Alexander Maul
 #
+# Ported to Py3  09/2018
+#
 # Author(s):
 #
 #   Alexander Maul <alexander.maul@dwd.de>
@@ -48,7 +50,7 @@ class Blob(object):
         self.reset()
 
     def __str__(self):
-        return "%dB %d/%d" % (len(self._data) / 8, self._data.pos // 8, self._data.pos % 8)
+        return "%dB %d/%d" % (len(self._data) // 8, *divmod(self._data.pos, 8))
 
     def __len__(self):
         return len(self._data)
@@ -93,7 +95,7 @@ class Blob(object):
     def read_align(self, even=False):
         p = self._data.pos
         self._data.bytealign()
-        if even and (self._data.pos / 8) & 1:
+        if even and (self._data.pos // 8) & 1:
             self._data.pos += 8
         return self._data.pos - p
 

@@ -3,6 +3,8 @@
 #
 # Copyright (c) 2016,2018 Alexander Maul
 #
+# Ported to Py3  09/2018
+#
 # Author(s):
 #
 #   Alexander Maul <alexander.maul@dwd.de>
@@ -25,7 +27,7 @@ TrollBUFR - table update.
 import sys
 import os
 
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 import tarfile
 import zipfile
 from argparse import ArgumentParser
@@ -34,7 +36,7 @@ from argparse import RawDescriptionHelpFormatter
 import logging
 logger = logging.getLogger("trollbufr")
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 E_OK = 0
 E_ARG = 1
@@ -112,9 +114,9 @@ def download_all(args, url_list):
                 return E_ARG
             with open(arc_dest, "w") as dest:
                 logger.info("Download %s", url)
-                response = urllib2.urlopen(url)
+                response = urllib.request.urlopen(url)
                 dest.write(response.read())
-        except StandardError as e:
+        except Exception as e:
             logger.warning("%s : %s", url, e)
         else:
             arc_list.append(arc_dest)
@@ -184,7 +186,7 @@ def run(argv=None):
         logger.error("URL or URL-file missing!\n")
         return E_ERR
     try:
-        print args
+        print(args)
         logger.debug("Sources: %s", url_list)
         logger.debug("Destination: %s", args.tables_path)
         arc_list = download_all(args, url_list)
@@ -197,14 +199,14 @@ def run(argv=None):
                         un_zip(args, arc_dest)
                     else:
                         logger.warning("Unkown archive format: %s", arc_dest)
-                except StandardError as e:
+                except Exception as e:
                     logger.warning("Extract %s : %s", arc_dest, e)
                 else:
                     os.remove(arc_dest)
     except KeyboardInterrupt:
         ### handle keyboard interrupt ###
         return E_OK
-    except StandardError as e:
+    except Exception as e:
         logger.error(e)
         return E_ERR
     return E_OK

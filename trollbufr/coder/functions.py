@@ -3,6 +3,8 @@
 #
 # Copyright (c) 2016-2018 Alexander Maul
 #
+# Ported to Py3  09/2018
+#
 # Author(s):
 #
 #   Alexander Maul <alexander.maul@dwd.de>
@@ -30,8 +32,8 @@ Created on Oct 28, 2016
 import datetime
 import logging
 import struct
-from errors import BufrDecodeError, BufrEncodeError, BufrTableError
-from bufr_types import AlterState, TabBType
+from .errors import BufrDecodeError, BufrEncodeError, BufrTableError
+from .bufr_types import AlterState, TabBType
 
 logger = logging.getLogger("trollbufr")
 
@@ -47,7 +49,7 @@ def octets2num(bin_data, offset, count):
     v = 0
     i = count - 1
     for b in bin_data[offset: offset + count]:
-        v |= ord(b) << 8 * i
+        v |= b << 8 * i
         i -= 1
     return offset + count, v
 
@@ -205,7 +207,7 @@ def rval2str(rval):
         rval >>= 8
     octets.reverse()
     val = "".join(octets)
-    return val.decode("latin1").encode("utf8")
+    return val
 
 
 _IEEE_INF = {32: ("f", 0x7f7fffff), 64: ("d", 0x7fefffffffffffff)}
@@ -249,7 +251,8 @@ def rval2num(tab_b_elem, alter, rval):
         # First, test if all bits are set, which usually means "missing value".
         # The delayed replication and repetition descr are special nut-cases.
         logger.debug("rval %d ==_(1<<%d)%d    #%06d/%d", rval, loc_width,
-                     all_one(loc_width), tab_b_elem.descr, tab_b_elem.descr / 1000)
+                     all_one(loc_width), tab_b_elem.descr,
+                     tab_b_elem.descr // 1000)
         val = None
     elif alter.ieee and (tab_b_elem.typ == TabBType.DOUBLE
                          or tab_b_elem.typ == TabBType.LONG):
@@ -265,7 +268,7 @@ def rval2num(tab_b_elem, alter, rval):
         val = float(rval + loc_refval) / 10 ** loc_scale
     elif tab_b_elem.typ == TabBType.LONG:
         # Integer: add reference, divide by scale
-        val = (rval + loc_refval) / 10 ** loc_scale
+        val = (rval + loc_refval) // 10 ** loc_scale
     elif tab_b_elem.typ == TabBType.STRING:
         val = rval2str(rval)
     else:
@@ -468,7 +471,7 @@ def mk_value_list(value_list, value_list_idx):
         # Build a list of this value from all subsets.
         try:
             val_l = [x[value_list_idx] for x in value_list]
-        except StandardError as e:
+        except Exception as e:
             logger.error("%d # %s", value_list_idx, value_list)
             raise e
     else:

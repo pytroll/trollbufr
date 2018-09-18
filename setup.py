@@ -31,9 +31,6 @@ version = imp.load_source("trollbufr.version", "trollbufr/version.py")
 
 requires = ["bitstring"]
 
-if sys.version_info < (2, 7):
-    requires.append("argparse")
-
 setup(name="trollbufr",
       version=version.__version__,
       description="Reading meteorological data format BUFR in pure Python",
@@ -44,17 +41,16 @@ setup(name="trollbufr",
                    "License :: OSI Approved :: GNU Lesser General Public License v3 " +
                    "or later (LGPLv3+)",
                    "Operating System :: OS Independent",
-                   "Programming Language :: Python :: 2",
-                   "Programming Language :: Python :: 2.6",
-                   "Programming Language :: Python :: 2.7",
+                   "Programming Language :: Python :: 3",
+                   "Programming Language :: Python :: 3.4",
                    "Topic :: Scientific/Engineering"
                    ],
       test_suite="bufr.tests.suite",
       entry_points={
-          "console_scripts": ["trollbufr = trollbufr.bufr_main:run",
-                              "trollbufr_update = trollbufr.update:run"]},
+          "console_scripts": ["trollbufr3 = trollbufr.bufr_main:run",
+                              "trollbufr3_update = trollbufr.update:run"]},
       packages=["trollbufr", "trollbufr.coder"],
       install_requires=requires,
-      python_requires=">=2.6, <3",
+      python_requires=">=3.4",
       zip_safe=False,
       )

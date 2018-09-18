@@ -3,6 +3,8 @@
 #
 # Copyright (c) 2016-2018 Alexander Maul
 #
+# Ported to Py3  09/2018
+#
 # Author(s):
 #
 #   Alexander Maul <alexander.maul@dwd.de>
@@ -144,7 +146,7 @@ class BackrefRecord(object):
                                if bitmap[len(bitmap) - i] == 0]
         self._stack_idx = 0
 
-    def next(self):
+    def __next__(self):
         """Return next descriptor/alter pair from stack."""
         if self._stack_idx >= len(self._backref_stack):
             raise StopIteration
