@@ -76,7 +76,7 @@ def next_bufr(path=None, bin_data=None):
                      0 if m is None else m.groups()[0]
                      )
         if m is not None:
-            header = str(m.groups()[0])
+            header = (m.groups()[0]).decode()
         else:
             header = None
         # Bufr starts here

@@ -47,7 +47,7 @@ def decode_sect0(bin_data, offset):
     keys = ["bufr", "size", "edition"]
     vals = bin_data.readlist("bytes:4, uintbe:24, uint:8")
     if vals[0] != b"BUFR":
-        return -1, -1,{}
+        return -1, -1, {}
     return bin_data.get_point(), 8, dict(list(zip(keys[1:], vals[1:])))
 
 
@@ -55,7 +55,12 @@ def encode_sect0(bin_data, edition=4):
     """
     :return: section start offset, meta-dict
     """
-    bin_data.writelist("bytes:4={}, uintbe:24={}, uint:8={}", (b"BUFR", 0, edition))
+    # Originally:
+    # bin_data.writelist("bytes:4={}, uintbe:24={}, uint:8={}", ("BUFR", 0, edition))
+    # The next two lines are a workaround, since in Py3 bitstring seems to
+    # evaluate "bytes:" incorrectly.
+    bin_data.write_bytes("BUFR")
+    bin_data.writelist("uintbe:24={}, uint:8={}", (0, edition))
     return 0, {"edition": edition}
 
 
