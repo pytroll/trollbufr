@@ -268,7 +268,7 @@ def rval2num(tab_b_elem, alter, rval):
         val = float(rval + loc_refval) / 10 ** loc_scale
     elif tab_b_elem.typ == TabBType.LONG:
         # Integer: add reference, divide by scale
-        val = (rval + loc_refval) // 10 ** loc_scale
+        val = int((rval + loc_refval) / 10 ** loc_scale)
     elif tab_b_elem.typ == TabBType.STRING:
         val = rval2str(rval)
     else:
