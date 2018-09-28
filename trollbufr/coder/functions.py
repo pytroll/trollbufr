@@ -28,7 +28,7 @@ Created on Oct 28, 2016
 
 @author: amaul
 """
-
+import sys
 import datetime
 import logging
 import struct
@@ -36,6 +36,13 @@ from .errors import BufrDecodeError, BufrEncodeError, BufrTableError
 from .bufr_types import AlterState, TabBType
 
 logger = logging.getLogger("trollbufr")
+
+if sys.version_info >= (3, 0):
+    def ordx(x):
+        return x
+else:
+    def ordx(x):
+        return ord(x)
 
 
 def octets2num(bin_data, offset, count):
@@ -49,7 +56,7 @@ def octets2num(bin_data, offset, count):
     v = 0
     i = count - 1
     for b in bin_data[offset: offset + count]:
-        v |= b << 8 * i
+        v |= ordx(b) << 8 * i
         i -= 1
     return offset + count, v
 

@@ -37,7 +37,7 @@ from .version import __version__
 from .bufr import Bufr
 from trollbufr.coder.bufr_types import TabBType
 from . import load_file
-import trollbufr.coder.load_tables
+from trollbufr.coder import load_tables
 
 import logging
 logger = logging.getLogger("trollbufr")
@@ -309,11 +309,11 @@ def run(argv=None):
                                metavar="path"
                                )
         group_tab.add_argument("-T", "--tables_type",
-                               default=trollbufr.coder.load_tables.list_parser()[0],
-                               choices=trollbufr.coder.load_tables.list_parser(),
+                               default=load_tables.list_parser()[0],
+                               choices=load_tables.list_parser(),
                                help="type of table format [%s], default: %s" % (
-                                    "|".join(trollbufr.coder.load_tables.list_parser()),
-                                   trollbufr.coder.load_tables.list_parser()[0]
+                                    "|".join(load_tables.list_parser()),
+                                   load_tables.list_parser()[0]
                                ),
                                metavar="name"
                                )

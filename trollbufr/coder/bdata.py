@@ -50,7 +50,7 @@ class Blob(object):
         self.reset()
 
     def __str__(self):
-        return "%dB %d/%d" % (len(self._data) // 8, *divmod(self._data.pos, 8))
+        return "%dB %d/%d" % (len(self._data) // 8, self._data.pos // 8, self._data.pos % 8)
 
     def __len__(self):
         return len(self._data)
