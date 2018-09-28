@@ -24,9 +24,11 @@
 """
 TrollBUFR - table update.
 """
+from __future__ import print_function
+from __future__ import absolute_import
+
 import sys
 import os
-
 import urllib.request, urllib.error, urllib.parse
 import tarfile
 import zipfile

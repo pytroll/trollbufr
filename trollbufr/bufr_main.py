@@ -27,7 +27,8 @@ trollbufr.reader
 Command-line interface, reads BUFR (with abbreviated heading line,
 if present) from file(s) and writes human-readable to stdout.
 '''
-
+from __future__ import print_function
+from __future__ import absolute_import
 
 import sys
 import os
