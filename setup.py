@@ -29,7 +29,7 @@ import sys
 
 version = imp.load_source("trollbufr.version", "trollbufr/version.py")
 
-requires = ["bitstring"]
+requires = ["bitstring", "six"]
 
 setup(name="trollbufr",
       version=version.__version__,
