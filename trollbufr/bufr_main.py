@@ -33,10 +33,10 @@ from __future__ import absolute_import
 import sys
 import os
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
-from .version import __version__
-from .bufr import Bufr
+from trollbufr.version import version
+from trollbufr.bufr import Bufr
 from trollbufr.coder.bufr_types import TabBType
-from . import load_file
+from trollbufr import load_file
 from trollbufr.coder import load_tables
 
 import logging
@@ -257,7 +257,7 @@ def run(argv=None):
         argv = sys.argv
     else:
         sys.argv.extend(argv)
-    program_version = __version__
+    program_version = version
     try:
         # Setup argument parser
         parser = ArgumentParser(description=__import__('__main__').__doc__,
