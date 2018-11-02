@@ -33,7 +33,7 @@ requires = ["bitstring", "six"]
 
 if sys.version_info >= (3, 0):
     setup(name="trollbufr",
-          version=version.__version__,
+          version=version.version,
           description="Reading meteorological data format BUFR in pure Python",
           author="Alexander Maul",
           author_email="alexander.maul@dwd.de",
@@ -57,7 +57,7 @@ if sys.version_info >= (3, 0):
           )
 else:
     setup(name="trollbufr",
-          version=version.__version__,
+          version=version.version,
           description="Reading meteorological data format BUFR in pure Python",
           author="Alexander Maul",
           author_email="alexander.maul@dwd.de",

@@ -154,6 +154,10 @@ class BackrefRecord(object):
         self._stack_idx += 1
         return r
 
+    def next(self):
+        """Return next descriptor/alter pair from stack."""
+        return self.__next__()
+
     def pause(self, paused=True):
         """Pause or re-activate recording."""
         self._recording = not paused

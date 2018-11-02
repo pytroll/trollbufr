@@ -355,7 +355,10 @@ def num2cval(tab_b_elem, alter, fix_width, value_list):
     :return:  loc_width, min_value, min_width, recal_val
     """
     rval_list = []
-    if not any(True for x in value_list if x is not None) or max(value_list) == min(value_list):
+    value_list_sansnone = [x for x in value_list if x is not None]
+    if (not any(True for x in value_list if x is not None)
+            or max(value_list_sansnone) == min(value_list_sansnone)
+            ):
         # All values are "missing", or all are equal
         if tab_b_elem and alter:
             min_value, loc_width = num2rval(tab_b_elem, alter, value_list[0])
@@ -384,11 +387,11 @@ def num2cval(tab_b_elem, alter, fix_width, value_list):
             for v in value_list:
                 rval_list.extend((v, fix_width))
         loc_width = rval_list[1]
-        min_value = min(rval_list[::2])
+        min_value = min(x for x in rval_list[::2] if x is not None)
         min_width = 0
         recal_val = [(v - min_value if v != all_one(loc_width) else None)
                      for v in rval_list[::2]]
-        recal_max_val = max(recal_val)
+        recal_max_val = max(x for x in recal_val if x is not None)
         min_width = recal_max_val.bit_length()
         if recal_max_val == all_one(min_width):
             min_width += 1
