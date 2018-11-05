@@ -356,8 +356,11 @@ def num2cval(tab_b_elem, alter, fix_width, value_list):
     """
     rval_list = []
     value_list_sansnone = [x for x in value_list if x is not None]
+    logger.debug("value_list:\n%s\nvalue_list_sansnone:\n%s\n", value_list, value_list_sansnone)
     if (not any(True for x in value_list if x is not None)
-            or max(value_list_sansnone) == min(value_list_sansnone)
+                or (max(value_list_sansnone) == min(value_list_sansnone)
+                    and len(value_list) == len(value_list_sansnone)
+                    )
             ):
         # All values are "missing", or all are equal
         if tab_b_elem and alter:
