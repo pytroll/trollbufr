@@ -3,6 +3,8 @@
 #
 # Copyright (c) 2016-2018 Alexander Maul
 #
+# Ported to Py3  09/2018
+#
 # Author(s):
 #
 #   Alexander Maul <alexander.maul@dwd.de>
@@ -28,10 +30,10 @@ Created on Oct 28, 2016
 
 @author: amaul
 """
-import functions as fun
-import operator as op
-from errors import BufrDecodeError, BufrEncodeError
-from bufr_types import DescrDataEntry, AlterState, BackrefRecord
+from . import functions as fun
+from . import operator as op
+from .errors import BufrDecodeError, BufrEncodeError
+from .bufr_types import DescrDataEntry, AlterState, BackrefRecord
 import logging
 
 logger = logging.getLogger("trollbufr")
@@ -391,7 +393,7 @@ class SubsetWriter():
                 """Compression:
                 define local function to eval loop count and list of loop lists.
                 """
-                lst = zip(*[x[vi] for x in vl])
+                lst = list(zip(*[x[vi] for x in vl]))
                 cnt = len(lst)
                 return cnt, lst
 

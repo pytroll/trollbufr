@@ -3,6 +3,8 @@
 #
 # Copyright (c) 2016 Alexander Maul
 #
+# Ported to Py3  09/2018
+#
 # Author(s):
 #
 #   Alexander Maul <alexander.maul@dwd.de>
@@ -30,8 +32,8 @@ import logging
 import os
 import re
 
-from errors import BufrTableError
-from tables import TabBElem
+from .errors import BufrTableError
+from .tables import TabBElem
 
 logger = logging.getLogger("trollbufr")
 
@@ -81,7 +83,7 @@ def load_tab_a(tables, fname):
     """Load table A (data category) from 'fname' into object Tables."""
     if not os.path.exists(fname):
         raise BufrTableError(_text_file_not_found % fname)
-    with open(fname, "rb") as fh:
+    with open(fname, "r") as fh:
         for line in fh:
             if line[0] == "#" or len(line) < 3:
                 continue
@@ -101,7 +103,7 @@ def load_tab_b(tables, fname):
     """Load table B (elements) from 'fname' into object Tables."""
     if not os.path.exists(fname):
         raise BufrTableError(_text_file_not_found % fname)
-    with open(fname, "rb") as fh:
+    with open(fname, "r") as fh:
         for line in fh:
             if line[0] == "#" or len(line) < 3:
                 continue
@@ -128,7 +130,7 @@ def load_tab_c(tables, fname):
     """Load table C (operators) from 'fname' into object Tables."""
     if not os.path.exists(fname):
         raise BufrTableError(_text_file_not_found % fname)
-    with open(fname, "rb") as fh:
+    with open(fname, "r") as fh:
         for line in fh:
             if line[0] == "#" or len(line) < 3:
                 continue
@@ -153,7 +155,7 @@ def load_tab_d(tables, fname):
         raise BufrTableError(_text_file_not_found % fname)
     # Using regex for eccodes' sequence.tab, for libdwd we split on tabulator.
     re_fl = re.compile("\"(?P<desc>\d+)\"\s*=\s*\[(?P<exp>[0-9, ]+)\]")
-    with open(fname, "rb") as fh:
+    with open(fname, "r") as fh:
         desc = None
         e = []
         cline = ""
@@ -187,7 +189,7 @@ def load_tab_cf(tables, fname):
         raise BufrTableError(_text_file_not_found % fname)
     for fn_etab in glob.glob(os.path.join(fname, "*.table")):
         desc = os.path.basename(fn_etab).split('.')
-        with open(fn_etab, "rb") as fh:
+        with open(fn_etab, "r") as fh:
             for line in fh:
                 if line[0] == "#" or len(line) < 3:
                     continue

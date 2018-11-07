@@ -3,6 +3,8 @@
 #
 # Copyright (c) 2016-2018 Alexander Maul
 #
+# Ported to Py3  09/2018
+#
 # Author(s):
 #
 #   Alexander Maul <alexander.maul@dwd.de>
@@ -30,15 +32,15 @@ Each subset is held in an instance of class :class:`~trollbufr.read.Subset`,
 which has the iterator function `next_data()` to iterate over all bin_data elements
 in this subset.
 """
-from coder.load_tables import TableCache
-import coder.bufr_sect as sect
-from coder.subset import SubsetReader, SubsetWriter
-from coder.bdata import Blob
-from coder.tables import TabBElem
-from coder.functions import (descr_is_data, descr_is_loop, descr_is_oper,
-                             descr_is_seq, descr_is_nil, get_descr_list)
-from coder.errors import (SUPPORTED_BUFR_EDITION, BufrDecodeError,
-                          BufrDecodeWarning, BufrTableError, BufrEncodeError)
+from trollbufr.coder.load_tables import TableCache
+from trollbufr.coder import bufr_sect as sect
+from trollbufr.coder.subset import SubsetReader, SubsetWriter
+from trollbufr.coder.bdata import Blob
+from trollbufr.coder.tables import TabBElem
+from trollbufr.coder.functions import (descr_is_data, descr_is_loop, descr_is_oper,
+                                       descr_is_seq, descr_is_nil, get_descr_list)
+from trollbufr.coder.errors import (SUPPORTED_BUFR_EDITION, BufrDecodeError,
+                                    BufrDecodeWarning, BufrTableError, BufrEncodeError)
 import logging
 
 logger = logging.getLogger("trollbufr")
@@ -321,7 +323,7 @@ class Bufr(object):
         if load_tables:
             try:
                 self._tables = self.load_tables()
-            except StandardError or Warning as exc:
+            except Exception or Warning as exc:
                 tables_fail = exc
         #
         # Section 2
@@ -525,7 +527,7 @@ class Bufr(object):
         if load_tables and not self._tables:
             try:
                 self._tables = self.load_tables()
-            except StandardError or Warning as exc:
+            except Exception or Warning as exc:
                 raise exc
         #
         # Section 2

@@ -3,6 +3,8 @@
 #
 # Copyright (c) 2016 Alexander Maul
 #
+# Ported to Py3  09/2018
+#
 # Author(s):
 #
 #   Alexander Maul <alexander.maul@dwd.de>
@@ -29,7 +31,7 @@ SUPPORTED_BUFR_EDITION = (3, 4)
 """List of supported BUFR editions."""
 
 
-class BufrDecodeError(StandardError):
+class BufrDecodeError(Exception):
     '''Error class, raised if anything prevents further decoding'''
 
     def __init__(self, msg):
@@ -57,7 +59,7 @@ class BufrDecodeWarning(Warning):
         return self.msg
 
 
-class BufrEncodeError(StandardError):
+class BufrEncodeError(Exception):
     '''Error class, raised if anything prevents further encoding'''
 
     def __init__(self, msg):
@@ -85,7 +87,7 @@ class BufrTableWarning(Warning):
         return self.msg
 
 
-class BufrTableError(StandardError):
+class BufrTableError(Exception):
     '''Error class, raised if anything prevents further decoding'''
 
     def __init__(self, msg):

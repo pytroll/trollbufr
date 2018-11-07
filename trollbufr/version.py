@@ -21,10 +21,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """Version file.
+Ported to Py3  09/2018
 """
 
 __major__ = "0"
-__minor__ = "6"
-__patch__ = "1"
+__minor__ = "10"
+__patch__ = "0"
 
-__version__ = ".".join([__major__, __minor__, __patch__])
+version = ".".join([__major__, __minor__, __patch__])
