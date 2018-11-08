@@ -3,6 +3,8 @@
 #
 # Copyright (c) 2016 Alexander Maul
 #
+# Ported to Py3  09/2018
+#
 # Author(s):
 #
 #   Alexander Maul <alexander.maul@dwd.de>
@@ -28,8 +30,8 @@ Created on Dec 07, 2016
 import logging
 import os
 
-from errors import BufrTableError
-from tables import TabBElem
+from .errors import BufrTableError
+from .tables import TabBElem
 
 logger = logging.getLogger("trollbufr")
 
@@ -110,7 +112,7 @@ def load_tab_a(tables, fname):
     """Load table A (data category) from 'fname' into object Tables."""
 #     if not os.path.exists(fname):
 #         raise BufrTableError(_text_file_not_found % fname)
-#     with open(fname, "rb") as fh:
+#     with open(fname, "r") as fh:
 #         for line in fh:
 #             if line[0]=="#" or len(line) < 3:
 #                 continue
@@ -131,10 +133,10 @@ def load_tab_b(tables, fname):
     """Load table B (elements) from 'fname' into object Tables."""
     if not os.path.exists(fname):
         raise BufrTableError(_text_file_not_found % fname)
-    with open(fname, "rb") as fh:
+    with open(fname, "r") as fh:
         for line in fh:
             try:
-                if line[0]=="#" or len(line) < 3:
+                if line[0] == "#" or len(line) < 3:
                     continue
                 e = None
                 el_descr = int(line[1:7])
@@ -152,7 +154,7 @@ def load_tab_b(tables, fname):
                 # descr, typ, unit, abbrev, full_name, scale, refval, width
                 e = TabBElem(el_descr, el_typ, el_unit, None, el_full_name, el_scale, el_refval, el_width)
                 tables.tab_b[int(el_descr)] = e
-            except StandardError as exc:
+            except Exception as exc:
                 logger.warning("Corrupt table %s (%s)", fname, line[0:8])
                 logger.warning(exc)
     return True
@@ -162,7 +164,7 @@ def load_tab_c(tables, fname):
     """Load table C (operators) from 'fname' into object Tables."""
 #     if not os.path.exists(fname):
 #         raise BufrTableError(_text_file_not_found % fname)
-#     with open(fname, "rb") as fh:
+#     with open(fname, "r") as fh:
 #         for line in fh:
 #             if line[0]=="#" or len(line) < 3:
 #                 continue
@@ -185,11 +187,11 @@ def load_tab_d(tables, fname):
     """Load table D (sequences) from 'fname' into object Tables."""
     if not os.path.exists(fname):
         raise BufrTableError(_text_file_not_found % fname)
-    with open(fname, "rb") as fh:
+    with open(fname, "r") as fh:
         desc = None
         e = []
         for line in fh:
-            if line[0]=="#" or len(line) < 3:
+            if line[0] == "#" or len(line) < 3:
                 continue
             try:
                 le = (line[1:7], line[7:10], line[10:17])
@@ -215,10 +217,10 @@ def load_tab_cf(tables, fname):
     """
     if not os.path.exists(fname):
         raise BufrTableError(_text_file_not_found % fname)
-    with open(fname, "rb") as fh:
+    with open(fname, "r") as fh:
         la = ["" * 5]
         for line in fh:
-            if line[0]=="#" or len(line) < 3:
+            if line[0] == "#" or len(line) < 3:
                 continue
             l = line.rstrip()
             try:

@@ -3,6 +3,8 @@
 #
 # Copyright (c) 2016-2018 Alexander Maul
 #
+# Ported to Py3  09/2018
+#
 # Author(s):
 #
 #   Alexander Maul <alexander.maul@dwd.de>
@@ -26,9 +28,9 @@ Created on Mar 31, 2017
 
 @author: amaul
 """
-import functions as fun
-from errors import BufrDecodeError, BufrEncodeError
-from bufr_types import DescrDataEntry, TabBType
+from . import functions as fun
+from .errors import BufrDecodeError, BufrEncodeError
+from .bufr_types import DescrDataEntry, TabBType
 import logging
 
 logger = logging.getLogger("trollbufr")
@@ -226,7 +228,7 @@ def fun_07(subset, descr):
     else:
         subset._alter.scale = an
         subset._alter.refmul = 10 ^ an
-        subset._alter.wnum = ((10 * an) + 2) / 3
+        subset._alter.wnum = ((10 * an) + 2) // 3
     return None
 
 
@@ -294,7 +296,7 @@ def fun_statistic_read(subset, descr, an):
         l_rval = DescrDataEntry(descr, "OPR", en[0], None)
     elif an == 255:
         """Statistical values marker operator."""
-        bar = subset._backref_record.next()
+        bar = next(subset._backref_record)
         if bar:
             val = subset.get_val(subset._blob,
                                  subset.subs_num,
@@ -315,7 +317,7 @@ def fun_statistic_write(subset, descr, an):
         # Filter back-references by bitmap
     elif an == 255:
         """Statistical values marker operator."""
-        bar = subset._backref_record.next()
+        bar = next(subset._backref_record)
         subset.add_val(subset._blob, subset._vl, subset._vi, tab_b_elem=bar[0], alter=bar[1])
         subset._vi += 1
     else:

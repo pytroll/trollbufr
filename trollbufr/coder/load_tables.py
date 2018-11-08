@@ -3,6 +3,8 @@
 #
 # Copyright (c) 2016 Alexander Maul
 #
+# Ported to Py3  09/2018
+#
 # Author(s):
 #
 #   Alexander Maul <alexander.maul@dwd.de>
@@ -27,8 +29,8 @@ Created on Sep 15, 2016
 import logging
 import os
 from importlib import import_module
-from errors import BufrTableError
-from tables import Tables
+from .errors import BufrTableError
+from .tables import Tables
 
 logger = logging.getLogger("trollbufr")
 
@@ -94,7 +96,7 @@ def load_all(master, center, subcenter, master_vers, local_vers, base_path, tabf
         mp, _ = tparse.get_file("A", base_path, master, center, subcenter, master_vers, local_vers)
         tparse.load_tab_a(tables, mp)
         logger.info(_text_tab_loaded, mp)
-    except StandardError as e:
+    except Exception as e:
         logger.warning(e)
     #
     # Table B (elements)
@@ -107,7 +109,7 @@ def load_all(master, center, subcenter, master_vers, local_vers, base_path, tabf
         if local_vers:
             tparse.load_tab_b(tables, lp)
             logger.info(_text_tab_loaded, lp)
-    except StandardError as e:
+    except Exception as e:
         logger.error(e)
         raise e
     #
@@ -116,7 +118,7 @@ def load_all(master, center, subcenter, master_vers, local_vers, base_path, tabf
         mp, _ = tparse.get_file("C", base_path, master, center, subcenter, master_vers, local_vers)
         tparse.load_tab_c(tables, mp)
         logger.info(_text_tab_loaded, mp)
-    except StandardError as e:
+    except Exception as e:
         logger.warning(e)
     #
     # Table D (sequences)
@@ -129,7 +131,7 @@ def load_all(master, center, subcenter, master_vers, local_vers, base_path, tabf
         if local_vers:
             tparse.load_tab_d(tables, lp)
             logger.info(_text_tab_loaded, lp)
-    except StandardError as e:
+    except Exception as e:
         logger.error(e)
         raise e
     #
@@ -143,7 +145,7 @@ def load_all(master, center, subcenter, master_vers, local_vers, base_path, tabf
         if local_vers:
             tparse.load_tab_cf(tables, lp)
             logger.info(_text_tab_loaded, lp)
-    except StandardError as er:
+    except Exception as er:
         logger.warning(er)
 
     return tables

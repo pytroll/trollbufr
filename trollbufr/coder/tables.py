@@ -3,6 +3,8 @@
 #
 # Copyright (c) 2016 Alexander Maul
 #
+# Ported to Py3  09/2018
+#
 # Author(s):
 #
 #   Alexander Maul <alexander.maul@dwd.de>
@@ -25,7 +27,7 @@ Created on Sep 15, 2016
 
 @author: amaul
 '''
-from bufr_types import TabBType
+from .bufr_types import TabBType
 
 import logging
 logger = logging.getLogger("trollbufr")
@@ -87,7 +89,7 @@ class Tables(object):
                 logger.debug("CODE %06d: %d -> %s", descr, val, sval)
             elif b.typ == TabBType.FLAG:
                 vl = []
-                for k, v in self.tab_cf[descr].items():
+                for k, v in list(self.tab_cf[descr].items()):
                     if val & (1 << (b.width - k)):
                         vl.append(v)
                 sval = "|".join(vl)

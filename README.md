@@ -25,6 +25,14 @@ Command-line interface created by setup-py.
 * Encoding JSON-formated values to BUFR.
 
 ## News
+`Vers. 0.10.0`
+All code supports Python2 *and* Python3, without code-conversion (i.e. by 2to3).
+
+With Python3 the `setup.py` installs the command-line script with a different
+name `trollbufr3`, to reflect its usage of Python3 and to have both versions
+callable.
+
+`Vers. 0.6.0`
 With version 0.6.0 a feature for encoding a JSON formatted file into binary BUFR
 is added.
 
@@ -38,5 +46,4 @@ New is `-j` to write any output in a JSON format.
 ## To-Do
 There are still things to do:
 
-* Support Python3
 * Implement the remaining obscure operators

@@ -24,11 +24,12 @@ Functions decoding the sections 0-5 for all the meta-bin_data.
 No bin_data json_data from section 4 are decoded.
 
 Created on Nov 18, 2016
+Ported to Py3  09/2018
 
 @author: amaul
 '''
-from errors import SUPPORTED_BUFR_EDITION, BufrEncodeError
-from functions import str2dtg, dtg2str
+from .errors import SUPPORTED_BUFR_EDITION, BufrEncodeError
+from .functions import str2dtg, dtg2str
 
 """
 Section 0
@@ -45,16 +46,21 @@ def decode_sect0(bin_data, offset):
     """
     keys = ["bufr", "size", "edition"]
     vals = bin_data.readlist("bytes:4, uintbe:24, uint:8")
-    if vals[0] != "BUFR":
-        return -1, {}
-    return bin_data.get_point(), 8, dict(zip(keys[1:], vals[1:]))
+    if vals[0] != b"BUFR":
+        return -1, -1, {}
+    return bin_data.get_point(), 8, dict(list(zip(keys[1:], vals[1:])))
 
 
 def encode_sect0(bin_data, edition=4):
     """
     :return: section start offset, meta-dict
     """
-    bin_data.writelist("bytes:4={}, uintbe:24={}, uint:8={}", ("BUFR", 0, edition))
+    # Originally:
+    # bin_data.writelist("bytes:4={}, uintbe:24={}, uint:8={}", ("BUFR", 0, edition))
+    # The next two lines are a workaround, since in Py3 bitstring seems to
+    # evaluate "bytes:" incorrectly.
+    bin_data.write_bytes("BUFR")
+    bin_data.writelist("uintbe:24={}, uint:8={}", (0, edition))
     return 0, {"edition": edition}
 
 
@@ -121,12 +127,12 @@ def decode_sect1(bin_data, offset, edition=4):
             ),
     }
     vals = bin_data.readlist(key_offs[edition][1])
-    rd = dict(zip(key_offs[edition][0], vals))
+    rd = dict(list(zip(key_offs[edition][0], vals)))
     rd["datetime"] = str2dtg(rd["datetime"], ed=edition)
     l = rd.pop("length")
     if bin_data.get_point() < offset + l:
         rd["sect1_local_use"] = bin_data.readlist("hex:8," * (offset + l - bin_data.get_point()))
-        if edition == 3 and rd["sect1_local_use"] == ["00"]:
+        if edition == 3 and rd["sect1_local_use"] == [b"00"]:
             rd.pop("sect1_local_use")
     bin_data.reset(offset + l)
     return offset + l, l, rd
@@ -134,8 +140,8 @@ def decode_sect1(bin_data, offset, edition=4):
 
 def encode_sect1(bin_data, json_data, edition=4):
     """
-    :param json_data: list or tuple with slots 
-        (master, center, subcenter, update, sect2, cat, cat_int, cat_loc, mver, lver, 
+    :param json_data: list or tuple with slots
+        (master, center, subcenter, update, sect2, cat, cat_int, cat_loc, mver, lver,
         str2dtg-yy, str2dtg-mo, str2dtg-dy, str2dtg-hh, str2dtg-mi, str2dtg-ss)
     :return: section start offset, meta-dict
     """
@@ -170,7 +176,7 @@ def encode_sect1(bin_data, json_data, edition=4):
             loc_use = json_data[-1]
             json_data = json_data[:-1]
         ord_val = json_data
-        rd = dict(zip(key_offs[edition][0], json_data[:-6]))
+        rd = dict(list(zip(key_offs[edition][0], json_data[:-6])))
         rd["datetime"] = dtg2str(json_data[-6:], edition)
     section_start = len(bin_data)
     bin_data.writelist(key_offs[edition][1], ord_val)
@@ -202,7 +208,7 @@ def decode_sect2(bin_data, offset):
     l = bin_data.readlist("uint:24, pad:8")[0]
     s2data = bin_data.readlist("hex:8," * (l - 4))
     bin_data.reset(offset + l)
-    return offset + l, l, {'data_start': offset + 4, 'data_end': offset + l, "sect2_data": s2data}
+    return offset + l, l, {"data_start": offset + 4, "data_end": offset + l, "sect2_data": s2data}
 
 
 def encode_sect2(bin_data, json_data):
@@ -238,7 +244,7 @@ def decode_sect3(bin_data, offset):
     """
     keys = ("length", "subsets", "obs", "comp")
     vals = bin_data.readlist("uint:24, pad:8, uint:16, bool, bool, pad:6")
-    rd = dict(zip(keys, vals))
+    rd = dict(list(zip(keys, vals)))
     l = rd.pop("length")
     desc = []
     while bin_data.get_point() < offset + l - 1:
@@ -286,7 +292,7 @@ def decode_sect4(bin_data, offset):
     """
     l = bin_data.read("uint:24")
     bin_data.reset(offset + l)
-    return offset + l, l, {'data_start': offset + 4, 'data_end': offset + l}
+    return offset + l, l, {"data_start": offset + 4, "data_end": offset + l}
 
 
 def encode_sect4(bin_data, edition=4):
@@ -316,7 +322,7 @@ def decode_sect5(bin_data, offset):
     """
     :return: offset, length, {}
     """
-    if bin_data.read("bytes:4") == "7777":
+    if bin_data.read("bytes:4") == b"7777":
         return offset + 4, 4, {}
     else:
         return -1, -1, {}
@@ -327,5 +333,5 @@ def encode_sect5(bin_data):
     :return: section start offset
     """
     section_start = len(bin_data)
-    bin_data.write_bytes("7777")
+    bin_data.write_bytes(b"7777")
     return section_start // 8

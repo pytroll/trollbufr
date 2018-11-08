@@ -3,6 +3,8 @@
 #
 # Copyright (c) 2016 Alexander Maul
 #
+# Ported to Py3  09/2018
+#
 # Author(s):
 #
 #   Alexander Maul <alexander.maul@dwd.de>
@@ -29,8 +31,8 @@ import logging
 import os
 import re
 
-from errors import BufrTableError
-from tables import TabBElem
+from .errors import BufrTableError
+from .tables import TabBElem
 
 logger = logging.getLogger("trollbufr")
 
@@ -84,9 +86,9 @@ def load_tab_a(tables, fname):
     """Load table A (data category) from 'fname' into object Tables."""
     if not os.path.exists(fname):
         raise BufrTableError(_text_file_not_found % fname)
-    with open(fname, "rb") as fh:
+    with open(fname, "r") as fh:
         for line in fh:
-            if line[0]=="#" or len(line) < 3:
+            if line[0] == "#" or len(line) < 3:
                 continue
             d = None
             e = None
@@ -109,9 +111,9 @@ def load_tab_b(tables, fname):
         # "FXY<tab>libDWDType<tab>unit<tab>scale<tab>referenceValue<tab>dataWidth_Bits<tab>descriptor_name<lf>"
         re_fl = re.compile(
             r"^(\d+)(?:\t|\s+)(\w)(?:\t|\s+)(.+?)(?:\t|\s+)([0-9-]+)(?:\t|\s+)([0-9-]+)(?:\t|\s+)([0-9-]+)(?:\t|\s+)(.+)$")
-        with open(fname, "rb") as fh:
+        with open(fname, "r") as fh:
             for line in fh:
-                if line[0]=="#" or len(line) < 3:
+                if line[0] == "#" or len(line) < 3:
                     continue
                 m = re_fl.match(line)
                 if m is None:
@@ -120,7 +122,7 @@ def load_tab_b(tables, fname):
                 e = TabBElem(int(m.group(1)), m.group(2), m.group(3), None, m.group(7),
                              int(m.group(4)), int(m.group(5)), int(m.group(6)))
                 tables.tab_b[int(m.group(1))] = e
-    except StandardError as err:
+    except Exception as err:
         logger.error(err, exc_info=1)
     return True
 
@@ -129,9 +131,9 @@ def load_tab_c(tables, fname):
     """Load table C (operators) from 'fname' into object Tables."""
     if not os.path.exists(fname):
         raise BufrTableError(_text_file_not_found % fname)
-    with open(fname, "rb") as fh:
+    with open(fname, "r") as fh:
         for line in fh:
-            if line[0]=="#" or len(line) < 3:
+            if line[0] == "#" or len(line) < 3:
                 continue
             d = None
             e = None
@@ -151,11 +153,11 @@ def load_tab_d(tables, fname):
     """Load table D (sequences) from 'fname' into object Tables."""
     if not os.path.exists(fname):
         raise BufrTableError(_text_file_not_found % fname)
-    with open(fname, "rb") as fh:
+    with open(fname, "r") as fh:
         desc = None
         e = []
         for line in fh:
-            if line[0]=="#" or len(line) < 3:
+            if line[0] == "#" or len(line) < 3:
                 continue
             try:
                 le = line.split('\t')
@@ -180,9 +182,9 @@ def load_tab_cf(tables, fname):
     """
     if not os.path.exists(fname):
         raise BufrTableError(_text_file_not_found % fname)
-    with open(fname, "rb") as fh:
+    with open(fname, "r") as fh:
         for line in fh:
-            if line[0]=="#" or len(line) < 3:
+            if line[0] == "#" or len(line) < 3:
                 continue
             e = line.rstrip().split('\t')
             if e[4].startswith("Reserved") or e[4].startswith("Not used"):
