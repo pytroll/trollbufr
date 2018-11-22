@@ -207,7 +207,8 @@ class Bufr(object):
     def next_subset_array(self):
         logger.info("SUBSETS %d", self.subsets)
         if self._blob.p >= self._data_e:
-            raise StopIteration
+            #raise StopIteration # XXX:
+            return
         # Create new Subset object
         subset = SubsetReader(self._tables,
                               self._blob,
@@ -226,7 +227,8 @@ class Bufr(object):
             self._blob.read_align(even=True)
             logger.debug("Padding  p:%d  bc:%d  -->  p:%d",
                          p, bc, self._blob.p)
-        raise StopIteration
+        #raise StopIteration # XXX:
+        return
 
     def next_subset_single(self):
         subset = None
@@ -256,7 +258,8 @@ class Bufr(object):
                 self._blob.read_align(even=True)
                 logger.debug("Padding  p:%d  bc:%d  -->  p:%d",
                              p, bc, self._blob.p)
-        raise StopIteration
+        #raise StopIteration # XXX:
+        return
 
     def next_subset(self, as_array=False):
         """Iterator for subsets in Sect. 4
@@ -286,7 +289,8 @@ class Bufr(object):
             logger.warning("Data section did not end properly, %d <> %d",
                            self._blob.p, self._data_e)
         logger.info("BUFR END")
-        raise StopIteration
+        #raise StopIteration # XXX:
+        return
 
     def decode_meta(self, bin_data, load_tables=True):
         """Decodes all meta-data of the BUFR.

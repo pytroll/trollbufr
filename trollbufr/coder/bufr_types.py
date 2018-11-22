@@ -149,7 +149,8 @@ class BackrefRecord(object):
     def __next__(self):
         """Return next descriptor/alter pair from stack."""
         if self._stack_idx >= len(self._backref_stack):
-            raise StopIteration
+            #raise StopIteration # XXX:
+            return
         r = self._backref_stack[self._stack_idx]
         self._stack_idx += 1
         return r

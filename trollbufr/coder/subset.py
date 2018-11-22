@@ -255,7 +255,8 @@ class SubsetReader(object):
 
         self.inprogress = False
         logger.debug("SUBSET END (%s)" % self._blob)
-        raise StopIteration
+        #raise StopIteration # XXX:
+        return
 
     def eval_loop_descr(self, record=True):
         """Evaluate descriptor for replication/repetition.
