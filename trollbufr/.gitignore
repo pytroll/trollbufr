@@ -1,7 +1,2 @@
 /__pycache__/
-/bufr.pyc
-/load_file.pyc
-/version.pyc
-/__init__.pyc
-/reader.pyc
-/update.pyc
+/*.pyc
