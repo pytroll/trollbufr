@@ -1,9 +1,2 @@
 /__pycache__/
-/__init__.pyc
-/bdata.pyc
-/bufr_sect.pyc
-/errors.pyc
-/functions.pyc
-/subset.pyc
-/operator.pyc
 /*.pyc

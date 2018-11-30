@@ -65,7 +65,8 @@ def next_bufr(path=None, bin_data=None):
             bstart += 1
             if bstart >= len(bin_data) - 30:
                 # reached end-of-bin_data
-                raise StopIteration
+                #raise StopIteration # XXX:
+                return
         # At start of file or after previous bufr look for AHL
         m = _re_ahl.search(bin_data[offs:bstart])
         logger.debug("SEARCH AHL : %d - %d %s : %d matches > %s",
@@ -96,7 +97,8 @@ def next_bufr(path=None, bin_data=None):
         logger.debug("LOADED %d B, %d - %d", bend - bstart, bstart, bend)
         # This generator returns one entry
         yield (bufr, size, header)
-    raise StopIteration
+    #raise StopIteration # XXX:
+    return
 
 
 if __name__ == "__main__":
