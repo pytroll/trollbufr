@@ -26,6 +26,6 @@ Ported to Py3  09/2018
 
 __major__ = "0"
 __minor__ = "10"
-__patch__ = "1"
+__patch__ = "2"
 
 version = ".".join([__major__, __minor__, __patch__])
