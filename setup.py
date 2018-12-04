@@ -59,6 +59,6 @@ setup(name="trollbufr",
           "console_scripts": scripts_with_python_version},
       packages=["trollbufr", "trollbufr.coder"],
       install_requires=requires,
-      python_requires="==2.6, ==2.7, >=3.4",
+      python_requires=">=2.6",
       zip_safe=False,
       )
