@@ -20,7 +20,7 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('../..'))
 import trollbufr
-from trollbufr.version import __version__
+from trollbufr.version import version as __version__
 
 # -- General configuration ------------------------------------------------
 
