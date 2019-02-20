@@ -56,7 +56,6 @@ To-Do
 -----
 There are still things to do:
 
-- Support Python3
 - Implement the remaining obscure operators
 
 So, get involved at PyTroll_ or GitHub_!
