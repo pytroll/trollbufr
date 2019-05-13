@@ -148,7 +148,7 @@ def fun_03_r(subset, descr):
     if an == 0:
         subset._alter.refval = {}
     else:
-        subset._read_refval(subset)
+        subset._read_refval()
         logger.debug("OP refval -> %s" % subset._alter.refval)
     return None
 
@@ -159,7 +159,7 @@ def fun_03_w(subset, descr):
     if an == 0:
         subset._alter.refval = {}
     else:
-        subset._write_refval(subset)
+        subset._write_refval()
         logger.debug("OP refval -> %s" % subset._alter.refval)
     return None
 
