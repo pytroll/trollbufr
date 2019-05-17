@@ -49,6 +49,9 @@ BMP USE  : Re-use the previously defined data present bit-map. Same as "BMP DEF"
 LOC desc : Local descriptor skipped, its bit-width was declared by operator.
 """
 
+DescrInfoEntry = namedtuple("DescrInfoEntry", "name shortname unit type")
+"""From table-B lookup for textual output."""
+
 BufrMetadataKeys = ("master",  # BUFR master version, WMO=0.
                     "center",  # Originating center.
                     "subcenter",  # Originating sub-center.
@@ -149,7 +152,7 @@ class BackrefRecord(object):
     def __next__(self):
         """Return next descriptor/alter pair from stack."""
         if self._stack_idx >= len(self._backref_stack):
-            #raise StopIteration # XXX:
+            # raise StopIteration # XXX:
             return
         r = self._backref_stack[self._stack_idx]
         self._stack_idx += 1

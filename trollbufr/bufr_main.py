@@ -108,38 +108,40 @@ def read_bufr_data(args):
                                       end="", file=fh_out)
                                 print(file=fh_out)
                                 continue
-                            d_name, d_unit, d_typ = tabl.lookup_elem(descr_entry.descr)
-                            if d_typ in (TabBType.CODE, TabBType.FLAG):
+                            descr_info = tabl.lookup_elem(descr_entry.descr)
+                            if descr_info.type in (TabBType.CODE, TabBType.FLAG):
                                 if descr_entry.value is None:
                                     print("%06d %-40s = Missing value"
-                                          % (descr_entry.descr, d_name), file=fh_out)
+                                          % (descr_entry.descr, descr_info.name), file=fh_out)
                                 else:
                                     v = tabl.lookup_codeflag(descr_entry.descr,
                                                              descr_entry.value)
                                     print("%06d %-40s = %s"
                                           % (descr_entry.descr,
-                                             d_name,
+                                             descr_info.name,
                                              str(v)), file=fh_out)
                             else:
-                                if d_unit in ("CCITT IA5", "Numeric"):
-                                    d_unit = ""
+                                if descr_info.unit in ("CCITT IA5", "Numeric"):
+                                    dinf_unit = ""
+                                else:
+                                    dinf_unit = descr_info.unit
                                 if descr_entry.value is None:
                                     print("%06d %-40s = /// %s"
                                           % (descr_entry.descr,
-                                             d_name, d_unit), file=fh_out)
+                                             descr_info.name, dinf_unit), file=fh_out)
                                 elif descr_entry.quality is not None:
                                     print("%06d %-40s = %s %s (%s)"
                                           % (descr_entry.descr,
-                                             d_name,
+                                             descr_info.name,
                                              str(descr_entry.value),
-                                             d_unit,
+                                             dinf_unit,
                                              descr_entry.quality), file=fh_out)
                                 else:
                                     print("%06d %-40s = %s %s"
                                           % (descr_entry.descr,
-                                             d_name,
+                                             descr_info.name,
                                              str(descr_entry.value),
-                                             d_unit), file=fh_out)
+                                             dinf_unit), file=fh_out)
             except Exception as e:
                 print("ERROR\t%s" % e, file=fh_out)
                 if logger.isEnabledFor(logging.DEBUG):
