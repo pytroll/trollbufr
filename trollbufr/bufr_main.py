@@ -267,7 +267,7 @@ def run(argv=None):
                                 )
         parser.add_argument('-V', '--version',
                             action='version',
-                            version="pybufr %s" % program_version
+                            version="TrollBUFR %s" % program_version
                             )
         parser.add_argument("-v", "--verbose", dest="verbose",
                             action="count",
