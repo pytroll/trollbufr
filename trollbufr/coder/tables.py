@@ -27,7 +27,7 @@ Created on Sep 15, 2016
 
 @author: amaul
 '''
-from .bufr_types import TabBType
+from .bufr_types import TabBType, DescrInfoEntry
 
 import logging
 logger = logging.getLogger("trollbufr")
@@ -97,25 +97,24 @@ class Tables(object):
         return sval or "N/A"
 
     def lookup_elem(self, descr):
-        """Returns name, unit, and type associated with table B or C descriptor."""
+        """Returns name, short-name, unit, and type in a named tuple
+        associated with table B or C descriptor.
+        """
         if descr < 100000:
             b = self.tab_b.get(descr)
             if b is None:
-                return ("UNKN", "", None)
-            if b.abbrev is not None:
-                return (b.abbrev, b.unit, b.typ)
-            else:
-                return (b.full_name, b.unit, b.typ)
+                return DescrInfoEntry("UNKN", None, "", None)
+            return DescrInfoEntry(b.full_name, b.abbrev, b.unit, b.typ)
         elif 200000 < descr < 300000:
             if descr in self.tab_c:
                 c = self.tab_c.get(descr)
             else:
                 c = self.tab_c.get(descr // 1000)
             if c is None:
-                return ("UNKN", "", "oper")
-            return (c[0], "", "oper")
+                return DescrInfoEntry("UNKN", None, "", "oper")
+            return DescrInfoEntry(c[0], None, "", "oper")
         else:
-            return (None, None, None)
+            return DescrInfoEntry(None, None, None, None)
 
     def lookup_common(self, val):
         """Returns meaning for data category value."""
