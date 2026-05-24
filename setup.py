@@ -24,10 +24,9 @@
 import multiprocessing
 
 from setuptools import setup, find_packages
-import imp
 import sys
+from trollbufr.version import version
 
-version = imp.load_source("trollbufr.version", "trollbufr/version.py")
 
 requires = ["bitstring", "six"]
 
@@ -39,7 +38,7 @@ else:
                                    "trollbufr3_update = trollbufr.update:run"]
 
 setup(name="trollbufr",
-      version=version.version,
+      version=version,
       description="Reading meteorological data format BUFR in pure Python",
       author="Alexander Maul",
       author_email="alexander.maul@dwd.de",
